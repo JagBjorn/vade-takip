@@ -2720,15 +2720,62 @@
 
         async function loadUserCompanies() {
             try {
-                const snapshot = await getCompaniesRef().get();
+                console.log('📂 Loading user companies...');
                 allCompaniesList = [];
                 
-                snapshot.forEach(doc => {
+                // 1. Kendi firmalarını yükle
+                const ownCompaniesSnapshot = await getCompaniesRef().get();
+                console.log('🏢 Own companies:', ownCompaniesSnapshot.size);
+                
+                ownCompaniesSnapshot.forEach(doc => {
                     allCompaniesList.push({
                         id: doc.id,
-                        ...doc.data()
+                        ...doc.data(),
+                        isShared: false  // Kendi firması
                     });
                 });
+
+                // 2. Paylaşılan firmaları yükle
+                const sharedCompaniesSnapshot = await window.db.collection('users')
+                    .doc(window.auth.currentUser.uid)
+                    .collection('sharedCompanies')
+                    .get();
+                
+                console.log('🤝 Shared companies:', sharedCompaniesSnapshot.size);
+
+                for (const sharedDoc of sharedCompaniesSnapshot.docs) {
+                    const sharedData = sharedDoc.data();
+                    console.log('📋 Shared company data:', sharedData);
+                    
+                    // Firma bilgilerini al
+                    try {
+                        const companyDoc = await window.db.collection('users')
+                            .doc(sharedData.ownerId)
+                            .collection('companies')
+                            .doc(sharedData.companyId)
+                            .get();
+                        
+                        if (companyDoc.exists) {
+                            const companyData = companyDoc.data();
+                            allCompaniesList.push({
+                                id: sharedDoc.id,  // sharedCompanies doc ID
+                                companyId: sharedData.companyId,  // Gerçek company ID
+                                name: sharedData.companyName || companyData.name,
+                                phone: companyData.phone,
+                                logo: companyData.logo,
+                                isShared: true,  // Paylaşılan firma
+                                ownerId: sharedData.ownerId,
+                                ownerEmail: sharedData.ownerEmail,
+                                permissions: sharedData.permissions
+                            });
+                            console.log('✅ Added shared company:', sharedData.companyName);
+                        }
+                    } catch (error) {
+                        console.error('Error loading shared company:', error);
+                    }
+                }
+
+                console.log('📊 Total companies loaded:', allCompaniesList.length);
 
                 renderCompanyDropdown();
 
