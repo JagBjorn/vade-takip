@@ -996,8 +996,8 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        window.auth = firebase.auth();
+        window.db = firebase.firestore();
 
         let currentUser = null;
         let customersListener = null;
@@ -1025,7 +1025,17 @@
             if (templatesListener) templatesListener();
         }
 
-        // Auth Functions
+        // Make functions globally accessible
+        window.currentUser = null;
+        window.cleanupListeners = cleanupListeners;
+        window.getUserRef = getUserRef;
+        window.getCustomersRef = getCustomersRef;
+        window.getSettingsRef = getSettingsRef;
+        window.getTemplatesRef = getTemplatesRef;
+
+        } // End initializeFirebase
+
+        // Auth Functions - GLOBAL SCOPE
         function showLoginForm() {
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('registerForm').style.display = 'none';
@@ -1044,6 +1054,23 @@
             document.getElementById('forgotPasswordForm').style.display = 'block';
         }
 
+        // Firestore References - GLOBAL
+        function getUserRef() {
+            return window.db.collection('users').doc(window.auth.currentUser.uid);
+        }
+
+        function getCustomersRef() {
+            return getUserRef().collection('customers');
+        }
+
+        function getSettingsRef() {
+            return getUserRef().collection('settings').doc('config');
+        }
+
+        function getTemplatesRef() {
+            return getUserRef().collection('templates').doc('messages');
+        }
+
         async function handleLogin() {
             console.log('handleLogin called');
             const email = document.getElementById('loginEmail').value.trim();
@@ -1055,7 +1082,7 @@
                 return;
             }
 
-            if (typeof auth === 'undefined') {
+            if (typeof window.auth === 'undefined') {
                 alert('Firebase Auth yüklenmemiş! Sayfayı yenileyin.');
                 console.error('auth is undefined');
                 return;
@@ -1063,7 +1090,7 @@
 
             try {
                 console.log('Attempting login...');
-                const result = await auth.signInWithEmailAndPassword(email, password);
+                const result = await window.auth.signInWithEmailAndPassword(email, password);
                 console.log('Login successful:', result);
                 showNotification('✅ Giriş başarılı!');
             } catch (error) {
@@ -1088,7 +1115,7 @@
                 return;
             }
 
-            if (typeof auth === 'undefined') {
+            if (typeof window.auth === 'undefined') {
                 alert('Firebase Auth yüklenmemiş! Sayfayı yenileyin.');
                 console.error('auth is undefined');
                 return;
@@ -1096,7 +1123,7 @@
 
             try {
                 console.log('Attempting registration...');
-                const result = await auth.createUserWithEmailAndPassword(email, password);
+                const result = await window.auth.createUserWithEmailAndPassword(email, password);
                 console.log('Registration successful:', result);
                 showNotification('✅ Kayıt başarılı!');
             } catch (error) {
@@ -1114,7 +1141,7 @@
             }
 
             try {
-                await auth.sendPasswordResetEmail(email);
+                await window.auth.sendPasswordResetEmail(email);
                 alert('✅ Şifre sıfırlama linki e-postanıza gönderildi');
                 showLoginForm();
             } catch (error) {
@@ -1126,7 +1153,7 @@
         async function handleLogout() {
             if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
                 try {
-                    await auth.signOut();
+                    await window.auth.signOut();
                     showNotification('👋 Çıkış yapıldı');
                 } catch (error) {
                     console.error(error);
@@ -1147,7 +1174,7 @@
             return messages[code] || 'Bir hata oluştu';
         }
 
-        // Initialize App
+        // Initialize App - GLOBAL
         function initializeApp() {
             requestNotificationPermission();
             loadCustomers();
@@ -1892,8 +1919,6 @@
                 closeEditModal();
             }
         });
-        
-        } // initializeFirebase function end
     </script>
 </body>
 </html>
