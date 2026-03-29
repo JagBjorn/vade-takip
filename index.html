@@ -1394,6 +1394,182 @@
             document.getElementById('editCustomerModal').classList.remove('show');
         }
 
+        // MÜŞTERİ DETAY MODAL
+        async function showCustomerDetail(customerName, customerPhone) {
+            try {
+                // Modal'ı aç
+                document.getElementById('customerDetailModal').classList.add('show');
+                document.getElementById('customerDetailTitle').textContent = `📊 ${customerName} - Detaylı Rapor`;
+                document.getElementById('customerDetailContent').innerHTML = '<div class="loading">Yükleniyor...</div>';
+
+                // Müşterinin TÜM kayıtlarını al
+                const allRecords = await getCustomersRef()
+                    .where('name', '==', customerName)
+                    .where('phone', '==', customerPhone)
+                    .get();
+
+                const records = [];
+                allRecords.forEach(doc => {
+                    records.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Müşteri bilgisi (isCustomerOnly kaydından)
+                const customerInfo = records.find(r => r.isCustomerOnly) || records[0];
+
+                // Ödemeler (isCustomerOnly olmayan)
+                const payments = records
+                    .filter(r => !r.isCustomerOnly && r.status !== 'no_payment')
+                    .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate)); // En yeni üstte
+
+                // İstatistikler
+                const totalPayments = payments.length;
+                const paidPayments = payments.filter(p => p.status === 'paid').length;
+                const pendingPayments = payments.filter(p => p.status === 'pending').length;
+                const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                const totalPending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+
+                // Geç ödemeler
+                const now = new Date();
+                const latePayments = payments.filter(p => {
+                    if (p.status !== 'paid') return false;
+                    const dueDate = new Date(p.dueDate);
+                    const paidDate = p.paidDate ? new Date(p.paidDate.toDate()) : now;
+                    return paidDate > dueDate;
+                });
+
+                // Ortalama ödeme süresi (geç ödemeler için)
+                let avgLateDays = 0;
+                if (latePayments.length > 0) {
+                    const totalLateDays = latePayments.reduce((sum, p) => {
+                        const dueDate = new Date(p.dueDate);
+                        const paidDate = new Date(p.paidDate.toDate());
+                        const diffDays = Math.floor((paidDate - dueDate) / (1000 * 60 * 60 * 24));
+                        return sum + diffDays;
+                    }, 0);
+                    avgLateDays = Math.round(totalLateDays / latePayments.length);
+                }
+
+                // HTML oluştur
+                const html = `
+                    <!-- Müşteri Bilgileri -->
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; color: white; margin-bottom: 20px;">
+                        <h2 style="margin: 0 0 15px 0; font-size: 24px;">${customerName}</h2>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 14px;">
+                            <div>📱 <strong>${customerPhone}</strong></div>
+                            ${customerInfo.email ? `<div>✉️ ${customerInfo.email}</div>` : ''}
+                            ${customerInfo.address ? `<div>📍 ${customerInfo.address}</div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- İstatistikler -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: #1976d2;">${totalPayments}</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 5px;">Toplam İşlem</div>
+                        </div>
+                        <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: #388e3c;">${paidPayments}</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 5px;">Ödendi</div>
+                        </div>
+                        <div style="background: #fff3e0; padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: #f57c00;">${pendingPayments}</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 5px;">Bekleyen</div>
+                        </div>
+                        <div style="background: #ffebee; padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: #d32f2f;">${latePayments.length}</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 5px;">Geç Ödeme</div>
+                        </div>
+                    </div>
+
+                    <!-- Finansal Özet -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #333;">💰 Finansal Durum</h3>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Ödenen Tutar:</span>
+                            <strong style="color: #28a745;">${totalPaid.toLocaleString('tr-TR')} ₺</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Bekleyen Tutar:</span>
+                            <strong style="color: #dc3545;">${totalPending.toLocaleString('tr-TR')} ₺</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid #dee2e6;">
+                            <span><strong>Toplam Ciro:</strong></span>
+                            <strong style="color: #667eea; font-size: 18px;">${(totalPaid + totalPending).toLocaleString('tr-TR')} ₺</strong>
+                        </div>
+                        ${avgLateDays > 0 ? `
+                        <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 8px; font-size: 13px;">
+                            ⚠️ <strong>Ortalama Gecikme:</strong> ${avgLateDays} gün
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Ödeme Geçmişi -->
+                    <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #333;">📜 Ödeme Geçmişi</h3>
+                    ${payments.length === 0 ? '<p style="text-align: center; color: #999;">Henüz ödeme kaydı yok</p>' : payments.map(payment => {
+                        const dueDate = new Date(payment.dueDate);
+                        const paidDate = payment.paidDate ? new Date(payment.paidDate.toDate()) : null;
+                        const isPaid = payment.status === 'paid';
+                        const isLate = isPaid && paidDate && paidDate > dueDate;
+                        const lateDays = isLate ? Math.floor((paidDate - dueDate) / (1000 * 60 * 60 * 24)) : 0;
+                        const daysLeft = Math.floor((dueDate - now) / (1000 * 60 * 60 * 24));
+
+                        let statusBadge = '';
+                        if (isPaid) {
+                            if (isLate) {
+                                statusBadge = `<span style="background: #ff9800; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">⚠️ ${lateDays} Gün Geç Ödendi</span>`;
+                            } else {
+                                statusBadge = `<span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">✓ Zamanında Ödendi</span>`;
+                            }
+                        } else {
+                            if (daysLeft < 0) {
+                                statusBadge = `<span style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">🚨 ${Math.abs(daysLeft)} Gün Gecikmiş</span>`;
+                            } else if (daysLeft === 0) {
+                                statusBadge = `<span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 12px; font-size: 12px;">🔔 Bugün</span>`;
+                            } else {
+                                statusBadge = `<span style="background: #17a2b8; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">📅 ${daysLeft} Gün Kaldı</span>`;
+                            }
+                        }
+
+                        return `
+                            <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                    <div>
+                                        <div style="font-size: 20px; font-weight: 700; color: ${isPaid ? '#28a745' : '#dc3545'};">
+                                            ${parseFloat(payment.amount).toLocaleString('tr-TR')} ₺
+                                        </div>
+                                        <div style="font-size: 12px; color: #999; margin-top: 4px;">
+                                            ${payment.paymentType || 'Manuel'}
+                                        </div>
+                                    </div>
+                                    ${statusBadge}
+                                </div>
+                                <div style="font-size: 13px; color: #666; margin-bottom: 8px;">
+                                    📅 <strong>Vade:</strong> ${dueDate.toLocaleDateString('tr-TR')}
+                                    ${isPaid && paidDate ? `<br>💰 <strong>Ödeme:</strong> ${paidDate.toLocaleDateString('tr-TR')}` : ''}
+                                </div>
+                                ${payment.note ? `<div style="font-size: 12px; color: #666; padding: 8px; background: #f8f9fa; border-radius: 6px; margin-top: 8px;">📝 ${payment.note}</div>` : ''}
+                                ${payment.createdBy ? `
+                                <div style="font-size: 11px; color: #999; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e9ecef;">
+                                    👤 ${payment.createdBy.fullName} - ${payment.createdAt ? new Date(payment.createdAt.toDate()).toLocaleDateString('tr-TR') : ''}
+                                </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+
+                document.getElementById('customerDetailContent').innerHTML = html;
+
+            } catch (error) {
+                console.error('showCustomerDetail error:', error);
+                document.getElementById('customerDetailContent').innerHTML = `<p style="color: red;">Hata: ${error.message}</p>`;
+            }
+        }
+
+        function closeCustomerDetailModal() {
+            document.getElementById('customerDetailModal').classList.remove('show');
+        }
+
         // Alias functions for onclick handlers
         async function saveNewCustomer() {
             // Modal'dan müşteri ekle - SADECE MÜŞTERİ BİLGİSİ (ÖDEME OLMADAN)
@@ -3106,6 +3282,9 @@
                         </div>
                         ${customer.note ? `<div style="margin-top: 10px; color: #666; font-size: 13px; font-style: italic;">📝 ${customer.note}</div>` : ''}
                         <div class="customer-actions" style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-small" onclick="showCustomerDetail('${customer.name}', '${customer.phone}')" style="flex: 1; min-width: 120px;">
+                                <span style="font-size: 16px;">📊</span> Detay
+                            </button>
                             <button class="btn btn-whatsapp btn-small" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', 0, '')" style="flex: 1; min-width: 120px;">
                                 <span style="font-size: 16px;">💬</span> WhatsApp
                             </button>
@@ -3320,23 +3499,55 @@
                 const customer = doc.data();
                 console.log('Customer data:', customer);
                 
-                // Form alanlarını doldur
-                document.getElementById('editCustomerId').value = customerId;
-                document.getElementById('editCustomerName').value = customer.name || '';
-                document.getElementById('editCustomerPhone').value = customer.phone || '';
-                document.getElementById('editCustomerEmail').value = customer.email || '';
-                document.getElementById('editCustomerAddress').value = customer.address || '';
-                document.getElementById('editCustomerNote').value = customer.note || '';
-                
-                console.log('Form filled with:', {
-                    name: customer.name,
-                    phone: customer.phone,
-                    email: customer.email,
-                    address: customer.address,
-                    note: customer.note
-                });
-                
+                // Modal'ı önce aç
                 document.getElementById('editCustomerModal').classList.add('show');
+                
+                // setTimeout ile form doldur (DOM hazır olsun diye)
+                setTimeout(() => {
+                    // Hidden ID
+                    const idInput = document.getElementById('editCustomerId');
+                    if (idInput) idInput.value = customerId;
+                    
+                    // Name
+                    const nameInput = document.getElementById('editCustomerName');
+                    if (nameInput) {
+                        nameInput.value = customer.name || '';
+                        nameInput.placeholder = '';
+                        console.log('Name set to:', nameInput.value);
+                    }
+                    
+                    // Phone
+                    const phoneInput = document.getElementById('editCustomerPhone');
+                    if (phoneInput) {
+                        phoneInput.value = customer.phone || '';
+                        phoneInput.placeholder = '';
+                        console.log('Phone set to:', phoneInput.value);
+                    }
+                    
+                    // Email
+                    const emailInput = document.getElementById('editCustomerEmail');
+                    if (emailInput) {
+                        emailInput.value = customer.email || '';
+                        emailInput.placeholder = '';
+                    }
+                    
+                    // Address
+                    const addressInput = document.getElementById('editCustomerAddress');
+                    if (addressInput) {
+                        addressInput.value = customer.address || '';
+                        addressInput.placeholder = '';
+                    }
+                    
+                    // Note
+                    const noteInput = document.getElementById('editCustomerNote');
+                    if (noteInput) {
+                        noteInput.value = customer.note || '';
+                        noteInput.placeholder = '';
+                    }
+                    
+                    console.log('All form fields filled');
+                }, 100);
+                
             }).catch(error => {
                 console.error('Error loading customer:', error);
                 alert('Müşteri yüklenirken hata oluştu: ' + error.message);
