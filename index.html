@@ -720,7 +720,7 @@
             <div id="registerForm" style="display: none;">
                 <div class="form-group">
                     <label>Ad Soyad *</label>
-                    <input type="text" id="registerFullName" placeholder="Ad Soyad" required>
+                    <input type="text" id="registerFullName" placeholder="Ahmet Yılmaz" required>
                 </div>
                 <div class="form-group">
                     <label>E-posta *</label>
@@ -868,7 +868,7 @@
                     </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
-                        <input type="text" id="newCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
                     </div>
                     <div class="form-group">
                         <label>Telefon *</label>
@@ -1015,7 +1015,7 @@
 
                 <div class="form-group">
                     <label>Ad Soyad</label>
-                    <input type="text" id="userFullName" placeholder="Ad Soyad">
+                    <input type="text" id="userFullName" placeholder="Ahmet Yılmaz">
                 </div>
 
                 <button class="btn" onclick="saveProfile()">💾 Profil Bilgilerini Kaydet</button>
@@ -1158,7 +1158,7 @@
             
             <div class="form-group">
                 <label>Ad Soyad / Şirket Adı *</label>
-                <input type="text" id="modalCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                <input type="text" id="modalCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
             </div>
 
             <div class="form-group">
@@ -1895,6 +1895,7 @@
             if (customersListener) customersListener();
             if (settingsListener) settingsListener();
             if (templatesListener) templatesListener();
+            if (sharedUsersListener) sharedUsersListener();
         }
 
         // Auth Functions - GLOBAL SCOPE
@@ -2084,6 +2085,10 @@
 
                 console.log('✅ Found', pendingInvites.size, 'pending invites for', email);
 
+                // Kullanıcı profili bilgisini al
+                const userProfile = await window.db.collection('users').doc(userId).get();
+                const userData = userProfile.data();
+
                 // Her davet için sharedCompanies ekle
                 const batch = window.db.batch();
 
@@ -2096,7 +2101,7 @@
                         ownerId: invite.ownerId
                     });
                     
-                    // Kullanıcının sharedCompanies'ine ekle
+                    // 1. Kullanıcının sharedCompanies'ine ekle
                     const sharedCompanyRef = window.db.collection('users').doc(userId)
                         .collection('sharedCompanies').doc(invite.companyId);
                     
@@ -2108,12 +2113,28 @@
                         permissions: invite.permissions,
                         invitedAt: invite.createdAt,
                         acceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        isShared: true  // ← EKLEME: Paylaşılan firma işareti
+                        isShared: true
                     });
 
-                    console.log('✅ Added to sharedCompanies:', invite.companyName);
+                    console.log('✅ Added to user sharedCompanies:', invite.companyName);
 
-                    // Pending invite'ı completed olarak işaretle
+                    // 2. Owner'ın sharedWith koleksiyonuna ekle
+                    const ownerSharedWithRef = window.db.collection('users').doc(invite.ownerId)
+                        .collection('companies').doc(invite.companyId)
+                        .collection('sharedWith').doc(userId);
+                    
+                    batch.set(ownerSharedWithRef, {
+                        userId: userId,
+                        email: email,
+                        fullName: userData?.fullName || 'İsimsiz',
+                        permissions: invite.permissions,
+                        sharedAt: invite.createdAt,
+                        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    console.log('✅ Added to owner sharedWith:', invite.companyName);
+
+                    // 3. Pending invite'ı completed olarak işaretle
                     batch.update(inviteDoc.ref, {
                         status: 'completed',
                         userId: userId,
@@ -2447,6 +2468,8 @@
             }
         }
 
+        let sharedUsersListener = null;
+
         async function loadSharedUsers() {
             const container = document.getElementById('sharedUsersContent');
 
@@ -2456,45 +2479,60 @@
             }
 
             try {
-                const sharedSnapshot = await getCompanySharedUsersRef().get();
-                
-                if (sharedSnapshot.empty) {
-                    container.innerHTML = '<p style="color: #666;">Henüz paylaşılan kullanıcı yok</p>';
+                // Eski listener'ı temizle
+                if (sharedUsersListener) {
+                    sharedUsersListener();
+                }
+
+                // Gerçek zamanlı listener ekle
+                const sharedUsersRef = getCompanySharedUsersRef();
+                if (!sharedUsersRef) {
+                    container.innerHTML = '<p style="color: red;">Firma referansı bulunamadı</p>';
                     return;
                 }
 
-                const sharedUsers = [];
-                sharedSnapshot.forEach(doc => {
-                    sharedUsers.push({ id: doc.id, ...doc.data() });
-                });
+                sharedUsersListener = sharedUsersRef.onSnapshot(sharedSnapshot => {
+                    if (sharedSnapshot.empty) {
+                        container.innerHTML = '<p style="color: #666;">Henüz paylaşılan kullanıcı yok</p>';
+                        return;
+                    }
 
-                container.innerHTML = sharedUsers.map(user => {
-                    const perms = user.permissions || {};
-                    const permList = [
-                        perms.edit ? '✏️ Düzenleme' : null,
-                        perms.payment ? '💰 Ödeme' : null,
-                        perms.whatsapp ? '📱 WhatsApp' : null,
-                        perms.add ? '➕ Ekleme' : null,
-                        perms.delete ? '🗑️ Silme' : null
-                    ].filter(Boolean).join(', ') || 'Sadece görüntüleme';
+                    const sharedUsers = [];
+                    sharedSnapshot.forEach(doc => {
+                        sharedUsers.push({ id: doc.id, ...doc.data() });
+                    });
 
-                    return `
-                        <div class="customer-card" style="margin-bottom: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                                <div style="flex: 1;">
-                                    <strong>${user.fullName || 'İsimsiz'}</strong><br>
-                                    <span style="color: #666; font-size: 13px;">${user.email}</span><br>
-                                    <span style="color: #667eea; font-size: 12px; font-weight: 600;">Yetkiler: ${permList}</span><br>
-                                    <span style="color: #999; font-size: 11px;">Paylaşıldı: ${new Date(user.sharedAt).toLocaleDateString('tr-TR')}</span>
-                                </div>
-                                <div style="display: flex; gap: 5px; flex-direction: column;">
-                                    <button class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;" onclick="editUserPermissions('${user.userId}')">✏️ Yetkileri Düzenle</button>
-                                    <button class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;" onclick="removeSharedUser('${user.userId}')">🗑️ Kaldır</button>
+                    container.innerHTML = sharedUsers.map(user => {
+                        const perms = user.permissions || {};
+                        const permList = [
+                            perms.edit ? '✏️ Düzenleme' : null,
+                            perms.payment ? '💰 Ödeme' : null,
+                            perms.whatsapp ? '📱 WhatsApp' : null,
+                            perms.add ? '➕ Ekleme' : null,
+                            perms.delete ? '🗑️ Silme' : null
+                        ].filter(Boolean).join(', ') || 'Sadece görüntüleme';
+
+                        return `
+                            <div class="customer-card" style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                    <div style="flex: 1;">
+                                        <strong>${user.fullName || 'İsimsiz'}</strong><br>
+                                        <span style="color: #666; font-size: 13px;">${user.email}</span><br>
+                                        <span style="color: #667eea; font-size: 12px; font-weight: 600;">Yetkiler: ${permList}</span><br>
+                                        <span style="color: #999; font-size: 11px;">Paylaşıldı: ${new Date(user.sharedAt).toLocaleDateString('tr-TR')}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 5px; flex-direction: column;">
+                                        <button class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;" onclick="editUserPermissions('${user.userId}')">✏️ Yetkileri Düzenle</button>
+                                        <button class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;" onclick="removeSharedUser('${user.userId}')">🗑️ Kaldır</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                }).join('');
+                        `;
+                    }).join('');
+                }, error => {
+                    console.error('Shared users listener error:', error);
+                    container.innerHTML = '<p style="color: red;">Yükleme hatası: ' + error.message + '</p>';
+                });
             } catch (error) {
                 console.error('Load shared users error:', error);
                 container.innerHTML = '<p style="color: red;">Yükleme hatası</p>';
@@ -3911,7 +3949,7 @@
             const templateDueDay = document.getElementById('templateDueDay').value;
             
             const sampleCustomer = {
-                name: 'Ad Soyad',
+                name: 'Ahmet Yılmaz',
                 amount: 5000,
                 dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
             };
