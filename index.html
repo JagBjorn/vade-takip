@@ -1842,9 +1842,14 @@
             }
 
             if (user) {
+                console.log('🔐 User logged in:', user.email);
                 currentUser = user;
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
+                
+                // Pending invites kontrol et (hem login hem register için)
+                console.log('🔍 Checking pending invites for:', user.email);
+                await checkPendingInvites(user.email, user.uid);
                 
                 // İlk kurulum kontrolü
                 await checkFirstTimeSetup();
@@ -2022,23 +2027,36 @@
         // Pending invites kontrol et
         async function checkPendingInvites(email, userId) {
             try {
+                console.log('📧 Checking pending invites for:', email, 'userId:', userId);
+                
                 const pendingInvites = await window.db.collection('pendingInvites')
                     .where('email', '==', email)
                     .where('status', '==', 'pending')
                     .get();
 
+                console.log('📊 Pending invites query result:', {
+                    empty: pendingInvites.empty,
+                    size: pendingInvites.size
+                });
+
                 if (pendingInvites.empty) {
-                    console.log('No pending invites for', email);
+                    console.log('❌ No pending invites for', email);
                     return;
                 }
 
-                console.log('Found', pendingInvites.size, 'pending invites for', email);
+                console.log('✅ Found', pendingInvites.size, 'pending invites for', email);
 
                 // Her davet için sharedCompanies ekle
                 const batch = window.db.batch();
 
                 for (const inviteDoc of pendingInvites.docs) {
                     const invite = inviteDoc.data();
+                    console.log('📝 Processing invite:', {
+                        inviteId: inviteDoc.id,
+                        companyName: invite.companyName,
+                        companyId: invite.companyId,
+                        ownerId: invite.ownerId
+                    });
                     
                     // Kullanıcının sharedCompanies'ine ekle
                     const sharedCompanyRef = window.db.collection('users').doc(userId)
@@ -2051,8 +2069,11 @@
                         companyName: invite.companyName,
                         permissions: invite.permissions,
                         invitedAt: invite.createdAt,
-                        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        acceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        isShared: true  // ← EKLEME: Paylaşılan firma işareti
                     });
+
+                    console.log('✅ Added to sharedCompanies:', invite.companyName);
 
                     // Pending invite'ı completed olarak işaretle
                     batch.update(inviteDoc.ref, {
@@ -2062,10 +2083,17 @@
                     });
                 }
 
+                console.log('💾 Committing batch...');
                 await batch.commit();
-                console.log('Pending invites processed successfully');
+                console.log('✅ Pending invites processed successfully!');
+                
+                // Firmaları yeniden yükle
+                console.log('🔄 Reloading companies...');
+                if (typeof loadAllCompanies === 'function') {
+                    await loadAllCompanies();
+                }
             } catch (error) {
-                console.error('Error checking pending invites:', error);
+                console.error('❌ Error checking pending invites:', error);
             }
         }
 
