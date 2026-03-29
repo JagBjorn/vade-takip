@@ -1094,58 +1094,6 @@
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Müşteri Düzenle</h3>
-                <button class="close-modal" onclick="closeEditModal()">×</button>
-            </div>
-            <input type="hidden" id="editCustomerId">
-            
-            <div class="form-group">
-                <label>Müşteri Adı</label>
-                <input type="text" id="editCustomerName">
-            </div>
-
-            <div class="form-group">
-                <label>Telefon</label>
-                <input type="tel" id="editCustomerPhone">
-            </div>
-
-            <div class="form-group">
-                <label>Ödeme Tipi</label>
-                <input type="text" id="editPaymentType">
-            </div>
-
-            <div class="form-group">
-                <label>Vade Tarihi</label>
-                <input type="date" id="editDueDate">
-            </div>
-
-            <div class="form-group">
-                <label>Tutar (₺)</label>
-                <input type="number" id="editAmount" step="0.01">
-            </div>
-
-            <div class="form-group">
-                <label>Not</label>
-                <textarea id="editNote"></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Durum</label>
-                <select id="editStatus">
-                    <option value="pending">Bekliyor</option>
-                    <option value="paid">Ödendi</option>
-                    <option value="postponed">Ertelendi</option>
-                </select>
-            </div>
-
-            <button class="btn" onclick="saveEdit()">💾 Kaydet</button>
-        </div>
-    </div>
-
     <!-- Permissions Modal -->
     <div id="permissionsModal" class="modal">
         <div class="modal-content">
@@ -3554,65 +3502,6 @@
             });
         }
 
-        function closeEditModal() {
-            document.getElementById('editModal').classList.remove('show');
-        }
-
-        async function saveEdit() {
-            const customerId = document.getElementById('editCustomerId').value;
-            const name = document.getElementById('editCustomerName').value.trim();
-            const phone = document.getElementById('editCustomerPhone').value.trim();
-            const paymentType = document.getElementById('editPaymentType').value.trim();
-            const dueDate = document.getElementById('editDueDate').value;
-            const amount = document.getElementById('editAmount').value;
-            const note = document.getElementById('editNote').value.trim();
-            const status = document.getElementById('editStatus').value;
-
-            if (!name || !phone || !dueDate || !amount) {
-                alert('Lütfen zorunlu alanları doldurun');
-                return;
-            }
-
-            try {
-                const now = new Date().toISOString();
-                const userProfile = (await getUserRef().get()).data();
-                const modifiedBy = {
-                    userId: window.auth.currentUser.uid,
-                    email: window.auth.currentUser.email,
-                    fullName: userProfile?.fullName || 'İsimsiz',
-                    timestamp: now
-                };
-
-                const updateData = {
-                    name,
-                    phone,
-                    paymentType,
-                    dueDate,
-                    amount: parseFloat(amount),
-                    note,
-                    status,
-                    lastModifiedBy: modifiedBy,
-                    activityLog: firebase.firestore.FieldValue.arrayUnion({
-                        action: 'edited',
-                        by: modifiedBy,
-                        timestamp: now
-                    })
-                };
-
-                if (status === 'paid') {
-                    updateData.paidDate = firebase.firestore.FieldValue.serverTimestamp();
-                    updateData.paidBy = modifiedBy;
-                }
-
-                await getCustomersRef().doc(customerId).update(updateData);
-                
-                showNotification('✅ Müşteri güncellendi');
-                closeEditModal();
-            } catch (error) {
-                console.error(error);
-                alert('Güncelleme başarısız');
-            }
-        }
 
         // Templates
         function loadTemplates() {
