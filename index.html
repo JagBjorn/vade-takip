@@ -1392,7 +1392,10 @@
         }
 
         function filterCustomersList() {
-            const searchTerm = document.getElementById('customerSearchBox').value.toLowerCase();
+            const searchBox = document.getElementById('customerSearchInput');
+            if (!searchBox) return;
+            
+            const searchTerm = searchBox.value.toLowerCase();
             const customers = document.querySelectorAll('#customerList > div');
             
             customers.forEach(customerCard => {
@@ -3624,18 +3627,34 @@
         }
 
         function filterCustomers() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const searchInput = document.getElementById('searchInput');
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
             const cards = document.querySelectorAll('.customer-card');
             
             cards.forEach(card => {
-                const customerName = card.querySelector('.customer-name').textContent.toLowerCase();
-                const customerPhone = card.querySelector('.customer-info').textContent.toLowerCase();
+                const nameEl = card.querySelector('.customer-name');
+                const infoEl = card.querySelector('.customer-info');
+                
+                if (!nameEl || !infoEl) {
+                    // Element yapısı farklıysa göster
+                    card.style.display = 'block';
+                    return;
+                }
+                
+                const customerName = nameEl.textContent.toLowerCase();
+                const customerPhone = infoEl.textContent.toLowerCase();
                 const matchesSearch = customerName.includes(searchTerm) || customerPhone.includes(searchTerm);
                 
                 let matchesFilter = true;
                 
                 if (currentFilter !== 'all') {
-                    getCustomersRef().doc(card.getAttribute('data-customer-id')).get().then(doc => {
+                    const customerId = card.getAttribute('data-customer-id');
+                    if (!customerId) {
+                        card.style.display = 'none';
+                        return;
+                    }
+                    
+                    getCustomersRef().doc(customerId).get().then(doc => {
                         if (!doc.exists) return;
                         
                         const customer = doc.data();
