@@ -720,7 +720,7 @@
             <div id="registerForm" style="display: none;">
                 <div class="form-group">
                     <label>Ad Soyad *</label>
-                    <input type="text" id="registerFullName" placeholder="Ad Soyad" required>
+                    <input type="text" id="registerFullName" placeholder="Ahmet Yılmaz" required>
                 </div>
                 <div class="form-group">
                     <label>E-posta *</label>
@@ -868,7 +868,7 @@
                     </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
-                        <input type="text" id="newCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
                     </div>
                     <div class="form-group">
                         <label>Telefon *</label>
@@ -883,23 +883,51 @@
                 <div class="form-group">
                     <label>Hızlı Ödeme Tipi Seçimi</label>
                     <div class="payment-type-buttons">
-                        <div class="payment-type-btn" onclick="selectPaymentType('10 Gün Taksit', 10)">10 Gün Taksit</div>
-                        <div class="payment-type-btn" onclick="selectPaymentType('20 Gün Tek Çekim', 20)">20 Gün Tek Çekim</div>
-                        <div class="payment-type-btn" onclick="selectPaymentType('30 Gün Havale', 30)">30 Gün Havale</div>
-                        <div class="payment-type-btn" onclick="selectPaymentType('45 Gün Çek', 45)">45 Gün Çek</div>
-                        <div class="payment-type-btn" onclick="selectPaymentType('60 Gün Senet', 60)">60 Gün Senet</div>
+                        <div class="payment-type-btn" onclick="selectPaymentType('Peşin', 0)">Peşin</div>
+                        <div class="payment-type-btn" onclick="selectPaymentType('Senet', 'senet')">Senet</div>
                         <div class="payment-type-btn" onclick="selectPaymentType('Manuel', 0)">Manuel</div>
                     </div>
                 </div>
 
-                <div class="form-group">
+                <!-- Peşin/Manuel için tek vade -->
+                <div id="singleDateSection" class="form-group">
                     <label>Vade Tarihi *</label>
                     <input type="date" id="paymentDueDate" required>
                 </div>
 
+                <!-- Senet için -->
+                <div id="senetSection" class="form-group" style="display: none;">
+                    <label>Kaç Ay Senet? *</label>
+                    <select id="senetCount" onchange="updateSenetPreview()">
+                        <option value="">Seçiniz</option>
+                        <option value="1">1 Ay</option>
+                        <option value="2">2 Ay</option>
+                        <option value="3">3 Ay</option>
+                        <option value="4">4 Ay</option>
+                        <option value="5">5 Ay</option>
+                        <option value="6">6 Ay</option>
+                        <option value="7">7 Ay</option>
+                        <option value="8">8 Ay</option>
+                        <option value="9">9 Ay</option>
+                        <option value="10">10 Ay</option>
+                        <option value="11">11 Ay</option>
+                        <option value="12">12 Ay</option>
+                    </select>
+                </div>
+
+                <div id="senetFirstDateSection" class="form-group" style="display: none;">
+                    <label>İlk Senet Tarihi *</label>
+                    <input type="date" id="senetFirstDate" onchange="updateSenetPreview()">
+                </div>
+
+                <div id="senetPreview" style="display: none; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #667eea;">
+                    <h4 style="margin: 0 0 10px 0; color: #667eea; font-size: 14px;">📋 Senet Önizleme:</h4>
+                    <div id="senetPreviewList" style="font-size: 13px; color: #666;"></div>
+                </div>
+
                 <div class="form-group">
                     <label>Tutar (₺) *</label>
-                    <input type="number" id="paymentAmount" placeholder="5000" step="0.01" required>
+                    <input type="number" id="paymentAmount" placeholder="5000" step="0.01" required oninput="updateSenetPreview()">
                 </div>
 
                 <div class="form-group">
@@ -1015,7 +1043,7 @@
 
                 <div class="form-group">
                     <label>Ad Soyad</label>
-                    <input type="text" id="userFullName" placeholder="Ad Soyad">
+                    <input type="text" id="userFullName" placeholder="Ahmet Yılmaz">
                 </div>
 
                 <button class="btn" onclick="saveProfile()">💾 Profil Bilgilerini Kaydet</button>
@@ -1170,7 +1198,7 @@
             
             <div class="form-group">
                 <label>Ad Soyad / Şirket Adı *</label>
-                <input type="text" id="modalCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                <input type="text" id="modalCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
             </div>
 
             <div class="form-group">
@@ -2780,22 +2808,73 @@
             });
             event.target.classList.add('active');
 
-            if (days > 0) {
+            // Senet seçildi mi?
+            if (days === 'senet') {
+                document.getElementById('singleDateSection').style.display = 'none';
+                document.getElementById('senetSection').style.display = 'block';
+                document.getElementById('senetFirstDateSection').style.display = 'block';
+                
+                // İlk senet tarihini bugünden 30 gün sonra ayarla
                 const today = new Date();
-                today.setDate(today.getDate() + days);
+                today.setDate(today.getDate() + 30);
                 const dateStr = today.toISOString().split('T')[0];
+                document.getElementById('senetFirstDate').value = dateStr;
                 
-                // Hem addCustomerModal hem de Ödeme Ekle sekmesinde olabilir
-                const dueDateField = document.getElementById('dueDate');
-                const paymentDueDateField = document.getElementById('paymentDueDate');
-                
-                if (dueDateField) {
-                    dueDateField.value = dateStr;
-                }
-                if (paymentDueDateField) {
-                    paymentDueDateField.value = dateStr;
+                // Önizlemeyi güncelle
+                updateSenetPreview();
+            } else {
+                // Normal tek vade
+                document.getElementById('singleDateSection').style.display = 'block';
+                document.getElementById('senetSection').style.display = 'none';
+                document.getElementById('senetFirstDateSection').style.display = 'none';
+                document.getElementById('senetPreview').style.display = 'none';
+
+                if (days > 0) {
+                    const today = new Date();
+                    today.setDate(today.getDate() + days);
+                    const dateStr = today.toISOString().split('T')[0];
+                    
+                    // Hem addCustomerModal hem de Ödeme Ekle sekmesinde olabilir
+                    const dueDateField = document.getElementById('dueDate');
+                    const paymentDueDateField = document.getElementById('paymentDueDate');
+                    
+                    if (dueDateField) {
+                        dueDateField.value = dateStr;
+                    }
+                    if (paymentDueDateField) {
+                        paymentDueDateField.value = dateStr;
+                    }
                 }
             }
+        }
+
+        function updateSenetPreview() {
+            const senetCount = parseInt(document.getElementById('senetCount').value);
+            const firstDate = document.getElementById('senetFirstDate').value;
+            const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
+            
+            if (!senetCount || !firstDate) {
+                document.getElementById('senetPreview').style.display = 'none';
+                return;
+            }
+
+            const amountPerSenet = (amount / senetCount).toFixed(2);
+            let previewHTML = '';
+            
+            const startDate = new Date(firstDate);
+            
+            for (let i = 0; i < senetCount; i++) {
+                const senetDate = new Date(startDate);
+                senetDate.setMonth(senetDate.getMonth() + i);
+                
+                const dateStr = senetDate.toLocaleDateString('tr-TR');
+                previewHTML += `<div style="padding: 5px 0; border-bottom: 1px dashed #ddd;">
+                    ${i + 1}. Senet: ${dateStr} - ${amountPerSenet} ₺
+                </div>`;
+            }
+            
+            document.getElementById('senetPreviewList').innerHTML = previewHTML;
+            document.getElementById('senetPreview').style.display = 'block';
         }
 
         // First Time Setup & Data Migration - GLOBAL
@@ -3494,7 +3573,6 @@
                 return;
             }
 
-            const dueDate = document.getElementById('paymentDueDate').value;
             const amount = document.getElementById('paymentAmount').value;
             const note = document.getElementById('paymentNote').value.trim();
 
@@ -3521,11 +3599,40 @@
                 return;
             }
 
-            if (!dueDate || !amount) {
-                alert('Lütfen vade tarihi ve tutar giriniz');
+            if (!amount) {
+                alert('Lütfen tutar giriniz');
                 return;
             }
 
+            // SENET SİSTEMİ KONTROLÜ
+            const isSenet = selectedDays === 'senet';
+            
+            if (isSenet) {
+                // Senet için validasyon
+                const senetCount = parseInt(document.getElementById('senetCount').value);
+                const firstDate = document.getElementById('senetFirstDate').value;
+                
+                if (!senetCount || !firstDate) {
+                    alert('Lütfen senet sayısı ve ilk senet tarihini seçin!');
+                    return;
+                }
+
+                // TOPLU SENET EKLE
+                await addMultipleSenets(customerName, customerPhone, amount, note, senetCount, firstDate);
+            } else {
+                // TEK ÖDEME EKLE
+                const dueDate = document.getElementById('paymentDueDate').value;
+                
+                if (!dueDate) {
+                    alert('Lütfen vade tarihi giriniz');
+                    return;
+                }
+
+                await addSinglePayment(customerName, customerPhone, dueDate, amount, note);
+            }
+        }
+
+        async function addSinglePayment(customerName, customerPhone, dueDate, amount, note) {
             try {
                 const now = new Date().toISOString();
                 const userProfile = (await getUserRef().get()).data();
@@ -3556,28 +3663,86 @@
                 });
 
                 showNotification('✅ Ödeme eklendi');
-                
-                // Formu temizle
-                clearSelectedCustomer();
-                document.getElementById('paymentDueDate').value = '';
-                document.getElementById('paymentAmount').value = '';
-                document.getElementById('paymentNote').value = '';
-                document.getElementById('newCustomerName').value = '';
-                document.getElementById('newCustomerPhone').value = '';
-                document.getElementById('newCustomerEmail').value = '';
-                selectedPaymentType = '';
-                selectedDays = 0;
-                document.querySelectorAll('.payment-type-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-
-                // Müşteri listesini güncelle
-                await loadAllCustomersForSearch();
-                
+                resetPaymentForm();
             } catch (error) {
-                console.error(error);
+                console.error('Add payment error:', error);
                 alert('Ödeme eklenirken hata oluştu');
             }
+        }
+
+        async function addMultipleSenets(customerName, customerPhone, totalAmount, note, senetCount, firstDate) {
+            try {
+                const now = new Date().toISOString();
+                const userProfile = (await getUserRef().get()).data();
+                const createdBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+
+                const amountPerSenet = (parseFloat(totalAmount) / senetCount).toFixed(2);
+                const startDate = new Date(firstDate);
+
+                const batch = window.db.batch();
+
+                for (let i = 0; i < senetCount; i++) {
+                    const senetDate = new Date(startDate);
+                    senetDate.setMonth(senetDate.getMonth() + i);
+                    const dueDateStr = senetDate.toISOString().split('T')[0];
+
+                    const docRef = getCustomersRef().doc();
+                    batch.set(docRef, {
+                        name: customerName,
+                        phone: customerPhone,
+                        dueDate: dueDateStr,
+                        amount: parseFloat(amountPerSenet),
+                        note: note ? `${note} (${i + 1}/${senetCount} Senet)` : `${i + 1}/${senetCount} Senet`,
+                        paymentType: `Senet ${i + 1}/${senetCount}`,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdBy: createdBy,
+                        lastModifiedBy: createdBy,
+                        paidDate: null,
+                        senetNumber: i + 1,
+                        totalSenets: senetCount,
+                        activityLog: [{
+                            action: 'created',
+                            by: createdBy,
+                            timestamp: now
+                        }]
+                    });
+                }
+
+                await batch.commit();
+
+                showNotification(`✅ ${senetCount} adet senet eklendi!`);
+                resetPaymentForm();
+            } catch (error) {
+                console.error('Add senets error:', error);
+                alert('Senetler eklenirken hata oluştu');
+            }
+        }
+
+        function resetPaymentForm() {
+            clearSelectedCustomer();
+            document.getElementById('paymentDueDate').value = '';
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentNote').value = '';
+            document.getElementById('newCustomerName').value = '';
+            document.getElementById('newCustomerPhone').value = '';
+            document.getElementById('newCustomerEmail').value = '';
+            document.getElementById('senetCount').value = '';
+            document.getElementById('senetFirstDate').value = '';
+            document.getElementById('senetPreview').style.display = 'none';
+            document.getElementById('singleDateSection').style.display = 'block';
+            document.getElementById('senetSection').style.display = 'none';
+            document.getElementById('senetFirstDateSection').style.display = 'none';
+            selectedPaymentType = '';
+            selectedDays = 0;
+            document.querySelectorAll('.payment-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
         }
 
         async function addCustomer() {
@@ -4114,7 +4279,7 @@
             const templateDueDay = document.getElementById('templateDueDay').value;
             
             const sampleCustomer = {
-                name: 'Ad Soyad',
+                name: 'Ahmet Yılmaz',
                 amount: 5000,
                 dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
             };
