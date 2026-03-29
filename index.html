@@ -259,10 +259,18 @@
 
         .btn-whatsapp {
             background: #25D366;
-            padding: 8px 16px;
+            padding: 10px 16px;
             width: auto;
-            font-size: 13px;
-            margin-left: 10px;
+            font-size: 14px;
+            margin-left: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-whatsapp:hover {
+            background: #20BA5A;
         }
 
         .customer-list {
@@ -589,6 +597,71 @@
             }
             
             .payment-type-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                gap: 5px;
+                padding: 8px;
+            }
+
+            .tab {
+                padding: 8px 12px;
+                font-size: 12px;
+                flex: 1 1 auto;
+                min-width: 80px;
+            }
+
+            .customer-card {
+                padding: 12px;
+            }
+
+            .customer-actions {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .customer-actions button {
+                flex: 1 1 calc(50% - 4px);
+                min-width: 120px;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 10px;
+                padding: 15px;
+            }
+
+            header h1 {
+                font-size: 18px;
+            }
+
+            .btn {
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .customer-actions button {
+                flex: 1 1 100%;
+                min-width: 100%;
+            }
+
+            .tab {
+                font-size: 11px;
+                padding: 6px 8px;
+            }
+
+            .stats-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -2727,13 +2800,99 @@
                 snapshot.forEach(doc => {
                     customers.push({ id: doc.id, ...doc.data() });
                 });
-                
-                renderCustomers(customers);
+
+                renderCustomers(customers); // Ödemeler sekmesi
+                renderCustomersOnly(customers); // Müşteriler sekmesi
                 updateDashboard();
             }, error => {
                 console.error('Customers listener error:', error);
                 document.getElementById('customerList').innerHTML = '<p style="color: red;">Veri yüklenirken hata oluştu</p>';
             });
+        }
+
+        function renderCustomersOnly(customers) {
+            const container = document.getElementById('customersList');
+            
+            if (customers.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Henüz müşteri eklenmemiş</p>';
+                return;
+            }
+
+            // Benzersiz müşterileri bul
+            const uniqueCustomers = {};
+            customers.forEach(c => {
+                const key = c.name + '|' + c.phone;
+                if (!uniqueCustomers[key]) {
+                    uniqueCustomers[key] = {
+                        name: c.name,
+                        phone: c.phone,
+                        email: c.email || '-',
+                        address: c.address || '-',
+                        note: c.note || '',
+                        totalPaid: 0,
+                        totalPending: 0,
+                        paymentCount: 0,
+                        lastPaymentDate: null,
+                        id: c.id // İlk ödemenin ID'si
+                    };
+                }
+                
+                uniqueCustomers[key].paymentCount++;
+                if (c.status === 'paid') {
+                    uniqueCustomers[key].totalPaid += parseFloat(c.amount || 0);
+                } else {
+                    uniqueCustomers[key].totalPending += parseFloat(c.amount || 0);
+                }
+                
+                if (!uniqueCustomers[key].lastPaymentDate || new Date(c.dueDate) > new Date(uniqueCustomers[key].lastPaymentDate)) {
+                    uniqueCustomers[key].lastPaymentDate = c.dueDate;
+                }
+            });
+
+            const customerArray = Object.values(uniqueCustomers);
+            
+            container.innerHTML = customerArray.map(customer => {
+                const totalAmount = customer.totalPaid + customer.totalPending;
+                
+                return `
+                    <div class="customer-card" style="margin-bottom: 15px;">
+                        <div class="customer-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div class="customer-name" style="font-size: 18px; font-weight: 700; color: #333;">${customer.name}</div>
+                            <span class="badge badge-info">${customer.paymentCount} işlem</span>
+                        </div>
+                        <div class="customer-info" style="font-size: 14px;">
+                            <div class="info-item" style="margin: 5px 0;">
+                                <span class="info-label" style="font-weight: 600; color: #666;">📱 Telefon:</span> 
+                                <a href="tel:${customer.phone}" style="color: #667eea; text-decoration: none;">${customer.phone}</a>
+                            </div>
+                            ${customer.email !== '-' ? `
+                            <div class="info-item" style="margin: 5px 0;">
+                                <span class="info-label" style="font-weight: 600; color: #666;">✉️ E-posta:</span> 
+                                <a href="mailto:${customer.email}" style="color: #667eea; text-decoration: none;">${customer.email}</a>
+                            </div>
+                            ` : ''}
+                            ${customer.address !== '-' ? `
+                            <div class="info-item" style="margin: 5px 0;">
+                                <span class="info-label" style="font-weight: 600; color: #666;">📍 Adres:</span> ${customer.address}
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 8px; font-size: 13px;">
+                            <strong style="color: #667eea;">💰 Finansal Özet:</strong><br>
+                            <span style="color: #28a745; font-weight: 600;">Ödenen: ${customer.totalPaid.toLocaleString('tr-TR')} ₺</span> • 
+                            <span style="color: #dc3545; font-weight: 600;">Bekleyen: ${customer.totalPending.toLocaleString('tr-TR')} ₺</span> • 
+                            <span style="color: #333; font-weight: 700;">Toplam: ${totalAmount.toLocaleString('tr-TR')} ₺</span>
+                        </div>
+                        ${customer.note ? `<div style="margin-top: 10px; color: #666; font-size: 13px; font-style: italic;">📝 ${customer.note}</div>` : ''}
+                        <div class="customer-actions" style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
+                            <button class="btn btn-whatsapp btn-small" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', 0, '')" style="flex: 1; min-width: 120px;">
+                                <span style="font-size: 16px;">💬</span> WhatsApp
+                            </button>
+                            <button class="btn btn-secondary btn-small" onclick="openEditModal('${customer.id}')" style="flex: 1; min-width: 100px;">✏️ Düzenle</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderCustomers(customers) {
