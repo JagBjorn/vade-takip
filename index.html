@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vade Takip">
+    <meta name="theme-color" content="#667eea">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23667eea' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle'>💼</text></svg>">
+    <title>Vade Takip Sistemi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(80px, env(safe-area-inset-bottom));
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border 0.3s;
+            -webkit-appearance: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            padding: 8px 16px;
+            width: auto;
+            font-size: 13px;
+        }
+
+        .btn-whatsapp {
+            background: #25D366;
+            padding: 8px 16px;
+            width: auto;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+
+        .customer-list {
+            margin-top: 20px;
+        }
+
+        .customer-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .customer-card.urgent {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .customer-card.warning {
+            border-left-color: #ffc107;
+            background: #fffef5;
+        }
+
+        .customer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .customer-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .customer-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .info-item {
+            color: #666;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .customer-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .template-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border: 2px dashed #667eea;
+        }
+
+        .template-preview-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .template-preview-text {
+            white-space: pre-wrap;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .variable-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .variable-chip {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .variable-chip:active {
+            transform: scale(0.95);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .customer-info {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .notification.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 Vade Takip Sistemi</h1>
+            <p>Müşteri vadelerini takip et, otomatik WhatsApp hatırlatıcıları gönder</p>
+            <p style="margin-top: 8px; font-size: 0.85em; opacity: 0.85;">📱 Ana ekrana ekleyerek uygulama gibi kullan</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('dashboard')">📊 Özet</button>
+            <button class="tab" onclick="showTab('add')">➕ Müşteri Ekle</button>
+            <button class="tab" onclick="showTab('list')">📋 Müşteri Listesi</button>
+            <button class="tab" onclick="showTab('templates')">💬 Mesaj Şablonları</button>
+            <button class="tab" onclick="showTab('settings')">⚙️ Ayarlar</button>
+        </div>
+
+        <div id="dashboard" class="content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCustomers">0</div>
+                    <div class="stat-label">Toplam Müşteri</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="urgentPayments">0</div>
+                    <div class="stat-label">Acil Vadeler (3 gün)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalAmount">0 ₺</div>
+                    <div class="stat-label">Toplam Tutar</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="thisMonth">0</div>
+                    <div class="stat-label">Bu Ay Vadesi Gelenler</div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 15px;">🔔 Bugün Gönderilecek Hatırlatmalar</h3>
+            <div id="todayReminders"></div>
+        </div>
+
+        <div id="add" class="content" style="display: none;">
+            <h2 style="margin-bottom: 20px;">Yeni Müşteri Ekle</h2>
+            <form id="customerForm">
+                <div class="form-group">
+                    <label>Müşteri Adı *</label>
+                    <input type="text" id="customerName" required placeholder="Örn: Ahmet Yılmaz">
+                </div>
+
+                <div class="form-group">
+                    <label>Telefon Numarası (WhatsApp) *</label>
+                    <input type="tel" id="customerPhone" required placeholder="05xx xxx xx xx">
+                </div>
+
+                <div class="form-group">
+                    <label>Vade Tarihi *</label>
+                    <input type="date" id="dueDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Tutar (₺)</label>
+                    <input type="number" id="amount" placeholder="Örn: 5000">
+                </div>
+
+                <div class="form-group">
+                    <label>Açıklama / Not</label>
+                    <textarea id="note" placeholder="Fatura numarası, ürün detayı vb."></textarea>
+                </div>
+
+                <button type="submit" class="btn">Müşteri Ekle</button>
+            </form>
+        </div>
+
+        <div id="list" class="content" style="display: none;">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Müşteri ara..." onkeyup="filterCustomers()">
+            </div>
+
+            <div class="filters">
+                <button class="filter-btn active" onclick="filterByStatus('all')">Tümü</button>
+                <button class="filter-btn" onclick="filterByStatus('urgent')">Acil (3 gün)</button>
+                <button class="filter-btn" onclick="filterByStatus('upcoming')">Yaklaşan</button>
+                <button class="filter-btn" onclick="filterByStatus('normal')">Normal</button>
+            </div>
+
+            <button class="btn btn-success" onclick="exportToExcel()" style="margin-bottom: 20px;">📥 Excel'e Aktar</button>
+
+            <div class="customer-list" id="customerList"></div>
+        </div>
+
+        <div id="templates" class="content" style="display: none;">
+            <h2 style="margin-bottom: 20px;">Mesaj Şablonları</h2>
+            
+            <div class="form-group">
+                <label>3 Gün Öncesi Hatırlatma Şablonu</label>
+                <div class="variable-chips">
+                    <span class="variable-chip" onclick="insertVariable('template3Day', '{isim}')">+İsim</span>
+                    <span class="variable-chip" onclick="insertVariable('template3Day', '{tutar}')">+Tutar</span>
+                    <span class="variable-chip" onclick="insertVariable('template3Day', '{tarih}')">+Tarih</span>
+                    <span class="variable-chip" onclick="insertVariable('template3Day', '{gun}')">+Gün</span>
+                </div>
+                <textarea id="template3Day" class="form-group" style="margin-top: 10px;">Merhaba {isim},
+
+Ödeme vadeniz 3 gün sonra ({tarih}) dolacaktır.
+Tutar: {tutar} ₺
+
+Hatırlatma için teşekkür ederiz.</textarea>
+            </div>
+
+            <div class="template-preview">
+                <div class="template-preview-label">Önizleme (3 Gün Öncesi):</div>
+                <div class="template-preview-text" id="preview3Day"></div>
+            </div>
+
+            <div class="form-group" style="margin-top: 30px;">
+                <label>Vade Günü Hatırlatma Şablonu</label>
+                <div class="variable-chips">
+                    <span class="variable-chip" onclick="insertVariable('templateDueDay', '{isim}')">+İsim</span>
+                    <span class="variable-chip" onclick="insertVariable('templateDueDay', '{tutar}')">+Tutar</span>
+                    <span class="variable-chip" onclick="insertVariable('templateDueDay', '{tarih}')">+Tarih</span>
+                </div>
+                <textarea id="templateDueDay" class="form-group" style="margin-top: 10px;">Sayın {isim},
+
+Bugün ödeme vadeniz dolmaktadır.
+Tutar: {tutar} ₺
+Vade Tarihi: {tarih}
+
+İyi günler dileriz.</textarea>
+            </div>
+
+            <div class="template-preview">
+                <div class="template-preview-label">Önizleme (Vade Günü):</div>
+                <div class="template-preview-text" id="previewDueDay"></div>
+            </div>
+
+            <button class="btn" onclick="saveTemplates()">Şablonları Kaydet</button>
+        </div>
+
+        <div id="settings" class="content" style="display: none;">
+            <h2 style="margin-bottom: 20px;">Ayarlar</h2>
+            
+            <div class="form-group">
+                <label>Şirket Adı</label>
+                <input type="text" id="companyName" placeholder="Şirketinizin adı">
+            </div>
+
+            <div class="form-group">
+                <label>İletişim Bilgisi</label>
+                <input type="text" id="contactInfo" placeholder="Telefon veya e-posta">
+            </div>
+
+            <button class="btn" onclick="saveSettings()">Ayarları Kaydet</button>
+
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
+                <h3 style="margin-bottom: 15px; color: #dc3545;">⚠️ Tehlikeli Bölge</h3>
+                <p style="margin-bottom: 15px; color: #666;">Bu işlem tüm verileri silecektir ve geri alınamaz!</p>
+                <button class="btn btn-danger" onclick="clearAllData()">Tüm Verileri Sil</button>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                <h4 style="margin-bottom: 10px;">📱 Mobil Uygulama Olarak Kullan</h4>
+                <p style="margin-bottom: 15px; color: #666;">Bu sayfayı iPhone'unuzun ana ekranına ekleyerek gerçek bir uygulama gibi kullanabilirsiniz:</p>
+                <ol style="padding-left: 20px; line-height: 1.8; color: #333;">
+                    <li><strong>Safari'de bu sayfayı açın</strong></li>
+                    <li><strong>Alt taraftaki Paylaş (📤) butonuna basın</strong></li>
+                    <li><strong>"Ana Ekrana Ekle" yi seçin</strong></li>
+                    <li><strong>"Ekle" butonuna basın</strong></li>
+                </ol>
+                <p style="margin-top: 15px; padding: 10px; background: #667eea; color: white; border-radius: 8px; font-size: 14px;">
+                    ✅ Artık ana ekranda "Vade Takip" simgesi olacak ve uygulama gibi açılacak!
+                </p>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                <h4 style="margin-bottom: 10px;">📱 WhatsApp Web Nasıl Kullanılır?</h4>
+                <ol style="padding-left: 20px; line-height: 1.8;">
+                    <li>Müşteri listesinde "WhatsApp Gönder" butonuna tıklayın</li>
+                    <li>WhatsApp Web otomatik açılacak</li>
+                    <li>Mesaj otomatik yazılacak, sadece "Gönder" tuşuna basın</li>
+                    <li>Sistem her gün otomatik kontrol yapar</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // iOS için "Ana Ekrana Ekle" kontrol - sadece ilk açılışta
+        window.addEventListener('load', () => {
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+            const isStandalone = window.navigator.standalone === true;
+            const installPromptShown = localStorage.getItem('installPromptShown');
+            
+            // Sadece iOS Safari'de ve standalone modda değilse göster
+            if (isIOS && isSafari && !isStandalone && !installPromptShown) {
+                setTimeout(() => {
+                    const shouldShow = confirm('📱 Bu uygulamayı ana ekranınıza eklemek ister misiniz?\n\nDaha hızlı erişim ve daha iyi deneyim için önerilir.');
+                    
+                    if (shouldShow) {
+                        alert('📱 Ana Ekrana Nasıl Eklenir:\n\n1. Aşağıdaki Paylaş düğmesine (📤) basın\n2. "Ana Ekrana Ekle" yi seçin\n3. "Ekle" ye basın\n\n✅ Artık ana ekranınızda olacak!');
+                    }
+                    localStorage.setItem('installPromptShown', 'true');
+                }, 2000);
+            }
+        });
+
+        // LocalStorage anahtarları
+        const STORAGE_KEYS = {
+            CUSTOMERS: 'vade_customers',
+            TEMPLATES: 'vade_templates',
+            SETTINGS: 'vade_settings',
+            SENT_REMINDERS: 'vade_sent_reminders'
+        };
+
+        // Varsayılan şablonlar
+        const DEFAULT_TEMPLATES = {
+            threeDayBefore: `Merhaba {isim},
+
+Ödeme vadeniz 3 gün sonra ({tarih}) dolacaktır.
+Tutar: {tutar} ₺
+
+Hatırlatma için teşekkür ederiz.`,
+            dueDay: `Sayın {isim},
+
+Bugün ödeme vadeniz dolmaktadır.
+Tutar: {tutar} ₺
+Vade Tarihi: {tarih}
+
+İyi günler dileriz.`
+        };
+
+        // Başlangıç
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                loadCustomers();
+                loadTemplates();
+                loadSettings();
+                updateDashboard();
+                updateTemplatePreview();
+                checkRemindersDaily();
+                
+                // Şablon değişikliklerini izle
+                document.getElementById('template3Day').addEventListener('input', updateTemplatePreview);
+                document.getElementById('templateDueDay').addEventListener('input', updateTemplatePreview);
+                
+                // Minimum tarih ayarla (bugün)
+                document.getElementById('dueDate').min = new Date().toISOString().split('T')[0];
+                
+                console.log('✅ Uygulama başarıyla yüklendi');
+            } catch (error) {
+                console.error('Başlatma hatası:', error);
+            }
+        });
+
+        // Müşteri formu
+        document.getElementById('customerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const customer = {
+                id: Date.now(),
+                name: document.getElementById('customerName').value,
+                phone: document.getElementById('customerPhone').value,
+                dueDate: document.getElementById('dueDate').value,
+                amount: document.getElementById('amount').value || 0,
+                note: document.getElementById('note').value,
+                createdAt: new Date().toISOString()
+            };
+
+            let customers = getCustomers();
+            customers.push(customer);
+            saveCustomers(customers);
+
+            showNotification('✅ Müşteri başarıyla eklendi!');
+            this.reset();
+            updateDashboard();
+            showTab('list');
+        });
+
+        function getCustomers() {
+            const data = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveCustomers(customers) {
+            localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
+        }
+
+        function deleteCustomer(id) {
+            if (confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) {
+                let customers = getCustomers();
+                customers = customers.filter(c => c.id !== id);
+                saveCustomers(customers);
+                loadCustomers();
+                updateDashboard();
+                showNotification('🗑️ Müşteri silindi');
+            }
+        }
+
+        function getDaysUntilDue(dueDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(dueDate);
+            due.setHours(0, 0, 0, 0);
+            const diffTime = due - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
+        function getCustomerStatus(dueDate) {
+            const days = getDaysUntilDue(dueDate);
+            if (days < 0) return { class: 'urgent', badge: 'Gecikmiş', badgeClass: 'badge-danger' };
+            if (days === 0) return { class: 'urgent', badge: 'Bugün', badgeClass: 'badge-danger' };
+            if (days <= 3) return { class: 'urgent', badge: `${days} gün kaldı`, badgeClass: 'badge-danger' };
+            if (days <= 7) return { class: 'warning', badge: `${days} gün kaldı`, badgeClass: 'badge-warning' };
+            return { class: '', badge: `${days} gün kaldı`, badgeClass: 'badge-success' };
+        }
+
+        function loadCustomers() {
+            const customers = getCustomers();
+            const listDiv = document.getElementById('customerList');
+            
+            if (customers.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>Henüz müşteri eklenmemiş</p>
+                        <p style="margin-top: 10px; font-size: 14px;">Başlamak için "Müşteri Ekle" sekmesine gidin</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Tarihe göre sırala
+            customers.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+            listDiv.innerHTML = customers.map(customer => {
+                const status = getCustomerStatus(customer.dueDate);
+                const formattedDate = new Date(customer.dueDate).toLocaleDateString('tr-TR');
+                
+                return `
+                    <div class="customer-card ${status.class}" data-customer-id="${customer.id}">
+                        <div class="customer-header">
+                            <div>
+                                <div class="customer-name">${customer.name}</div>
+                                <span class="badge ${status.badgeClass}">${status.badge}</span>
+                            </div>
+                        </div>
+                        <div class="customer-info">
+                            <div class="info-item">
+                                <span class="info-label">📞 Telefon:</span> ${customer.phone}
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">📅 Vade:</span> ${formattedDate}
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">💰 Tutar:</span> ${parseFloat(customer.amount).toLocaleString('tr-TR')} ₺
+                            </div>
+                            ${customer.note ? `
+                            <div class="info-item">
+                                <span class="info-label">📝 Not:</span> ${customer.note}
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="customer-actions">
+                            <button class="btn btn-whatsapp" onclick="sendWhatsApp('${customer.id}')">
+                                📱 WhatsApp Gönder
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteCustomer(${customer.id})">
+                                🗑️ Sil
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function sendWhatsApp(customerId) {
+            const customers = getCustomers();
+            const customer = customers.find(c => c.id == customerId);
+            
+            if (!customer) return;
+
+            const message = generateMessage(customer, 'manual');
+            const phone = customer.phone.replace(/\D/g, ''); // Sadece rakamlar
+            const whatsappPhone = phone.startsWith('0') ? '90' + phone.substring(1) : phone;
+            
+            const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
+        }
+
+        function generateMessage(customer, type) {
+            const templates = getTemplates();
+            let template = type === '3day' ? templates.threeDayBefore : templates.dueDay;
+            
+            const dueDate = new Date(customer.dueDate).toLocaleDateString('tr-TR');
+            const daysLeft = getDaysUntilDue(customer.dueDate);
+            
+            template = template
+                .replace(/{isim}/g, customer.name)
+                .replace(/{tutar}/g, parseFloat(customer.amount).toLocaleString('tr-TR'))
+                .replace(/{tarih}/g, dueDate)
+                .replace(/{gun}/g, daysLeft);
+            
+            return template;
+        }
+
+        function updateDashboard() {
+            const customers = getCustomers();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            document.getElementById('totalCustomers').textContent = customers.length;
+            
+            const urgent = customers.filter(c => getDaysUntilDue(c.dueDate) <= 3 && getDaysUntilDue(c.dueDate) >= 0);
+            document.getElementById('urgentPayments').textContent = urgent.length;
+
+            const totalAmount = customers.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+            document.getElementById('totalAmount').textContent = totalAmount.toLocaleString('tr-TR') + ' ₺';
+
+            const thisMonth = customers.filter(c => {
+                const due = new Date(c.dueDate);
+                return due.getMonth() === today.getMonth() && due.getFullYear() === today.getFullYear();
+            });
+            document.getElementById('thisMonth').textContent = thisMonth.length;
+
+            // Bugün gönderilecek hatırlatmaları göster
+            const reminders = getTodayReminders();
+            const remindersDiv = document.getElementById('todayReminders');
+            
+            if (reminders.length === 0) {
+                remindersDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✅</div>
+                        <p>Bugün gönderilecek hatırlatma yok</p>
+                    </div>
+                `;
+            } else {
+                remindersDiv.innerHTML = reminders.map(r => {
+                    const customer = customers.find(c => c.id === r.customerId);
+                    if (!customer) return '';
+                    
+                    return `
+                        <div class="customer-card ${r.type === 'due' ? 'urgent' : 'warning'}">
+                            <div class="customer-header">
+                                <div class="customer-name">${customer.name}</div>
+                                <span class="badge ${r.type === 'due' ? 'badge-danger' : 'badge-warning'}">
+                                    ${r.type === '3day' ? '3 Gün Öncesi Hatırlatma' : 'Vade Günü Hatırlatma'}
+                                </span>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <button class="btn btn-whatsapp" onclick="sendWhatsApp('${customer.id}')">
+                                    📱 WhatsApp Gönder
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function getTodayReminders() {
+            const customers = getCustomers();
+            const sentReminders = getSentReminders();
+            const today = new Date().toISOString().split('T')[0];
+            const reminders = [];
+
+            customers.forEach(customer => {
+                const daysLeft = getDaysUntilDue(customer.dueDate);
+                
+                // 3 gün öncesi hatırlatma
+                if (daysLeft === 3) {
+                    const key = `${customer.id}_3day_${customer.dueDate}`;
+                    if (!sentReminders[key]) {
+                        reminders.push({ customerId: customer.id, type: '3day' });
+                    }
+                }
+                
+                // Vade günü hatırlatma
+                if (daysLeft === 0) {
+                    const key = `${customer.id}_due_${customer.dueDate}`;
+                    if (!sentReminders[key]) {
+                        reminders.push({ customerId: customer.id, type: 'due' });
+                    }
+                }
+            });
+
+            return reminders;
+        }
+
+        function checkRemindersDaily() {
+            // Her sayfa yüklendiğinde bugünün hatırlatmalarını kontrol et
+            const reminders = getTodayReminders();
+            
+            if (reminders.length > 0) {
+                console.log(`Bugün ${reminders.length} hatırlatma gönderilecek`);
+            }
+        }
+
+        function getSentReminders() {
+            const data = localStorage.getItem(STORAGE_KEYS.SENT_REMINDERS);
+            return data ? JSON.parse(data) : {};
+        }
+
+        function markReminderAsSent(customerId, type, dueDate) {
+            const sentReminders = getSentReminders();
+            const key = `${customerId}_${type}_${dueDate}`;
+            sentReminders[key] = new Date().toISOString();
+            localStorage.setItem(STORAGE_KEYS.SENT_REMINDERS, JSON.stringify(sentReminders));
+        }
+
+        // Şablon yönetimi
+        function getTemplates() {
+            const data = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
+            return data ? JSON.parse(data) : DEFAULT_TEMPLATES;
+        }
+
+        function loadTemplates() {
+            const templates = getTemplates();
+            document.getElementById('template3Day').value = templates.threeDayBefore;
+            document.getElementById('templateDueDay').value = templates.dueDay;
+        }
+
+        function saveTemplates() {
+            const templates = {
+                threeDayBefore: document.getElementById('template3Day').value,
+                dueDay: document.getElementById('templateDueDay').value
+            };
+            localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+            showNotification('💾 Şablonlar kaydedildi');
+            updateTemplatePreview();
+        }
+
+        function insertVariable(textareaId, variable) {
+            const textarea = document.getElementById(textareaId);
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            textarea.value = text.substring(0, start) + variable + text.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+            updateTemplatePreview();
+        }
+
+        function updateTemplatePreview() {
+            const template3Day = document.getElementById('template3Day').value;
+            const templateDueDay = document.getElementById('templateDueDay').value;
+            
+            const sampleCustomer = {
+                name: 'Ahmet Yılmaz',
+                amount: 5000,
+                dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            };
+            
+            const preview3 = template3Day
+                .replace(/{isim}/g, sampleCustomer.name)
+                .replace(/{tutar}/g, parseFloat(sampleCustomer.amount).toLocaleString('tr-TR'))
+                .replace(/{tarih}/g, new Date(sampleCustomer.dueDate).toLocaleDateString('tr-TR'))
+                .replace(/{gun}/g, '3');
+            
+            const previewDue = templateDueDay
+                .replace(/{isim}/g, sampleCustomer.name)
+                .replace(/{tutar}/g, parseFloat(sampleCustomer.amount).toLocaleString('tr-TR'))
+                .replace(/{tarih}/g, new Date().toLocaleDateString('tr-TR'));
+            
+            document.getElementById('preview3Day').textContent = preview3;
+            document.getElementById('previewDueDay').textContent = previewDue;
+        }
+
+        // Ayarlar
+        function loadSettings() {
+            const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+            if (data) {
+                const settings = JSON.parse(data);
+                document.getElementById('companyName').value = settings.companyName || '';
+                document.getElementById('contactInfo').value = settings.contactInfo || '';
+            }
+        }
+
+        function saveSettings() {
+            const settings = {
+                companyName: document.getElementById('companyName').value,
+                contactInfo: document.getElementById('contactInfo').value
+            };
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+            showNotification('⚙️ Ayarlar kaydedildi');
+        }
+
+        function clearAllData() {
+            if (confirm('TÜM VERİLER SİLİNECEK! Bu işlem geri alınamaz. Emin misiniz?')) {
+                if (confirm('Son kez soruyoruz: Tüm müşteriler, şablonlar ve ayarlar silinecek. Devam edilsin mi?')) {
+                    localStorage.clear();
+                    showNotification('🗑️ Tüm veriler silindi');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            }
+        }
+
+        // Excel export
+        function exportToExcel() {
+            const customers = getCustomers();
+            
+            if (customers.length === 0) {
+                alert('Dışa aktarılacak müşteri bulunamadı');
+                return;
+            }
+
+            const data = customers.map(c => ({
+                'Müşteri Adı': c.name,
+                'Telefon': c.phone,
+                'Vade Tarihi': new Date(c.dueDate).toLocaleDateString('tr-TR'),
+                'Tutar (₺)': parseFloat(c.amount),
+                'Kalan Gün': getDaysUntilDue(c.dueDate),
+                'Not': c.note || '',
+                'Eklenme Tarihi': new Date(c.createdAt).toLocaleDateString('tr-TR')
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Müşteriler');
+            
+            const fileName = `vade_takip_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            showNotification('📥 Excel dosyası indirildi');
+        }
+
+        // Filtreleme
+        let currentFilter = 'all';
+
+        function filterByStatus(status) {
+            currentFilter = status;
+            
+            // Aktif buton stilini güncelle
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            filterCustomers();
+        }
+
+        function filterCustomers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.customer-card');
+            
+            cards.forEach(card => {
+                const customerName = card.querySelector('.customer-name').textContent.toLowerCase();
+                const customerPhone = card.querySelector('.customer-info').textContent.toLowerCase();
+                const matchesSearch = customerName.includes(searchTerm) || customerPhone.includes(searchTerm);
+                
+                let matchesFilter = true;
+                
+                if (currentFilter !== 'all') {
+                    const hasUrgentClass = card.classList.contains('urgent');
+                    const hasWarningClass = card.classList.contains('warning');
+                    
+                    if (currentFilter === 'urgent' && !hasUrgentClass) matchesFilter = false;
+                    if (currentFilter === 'upcoming' && !hasWarningClass) matchesFilter = false;
+                    if (currentFilter === 'normal' && (hasUrgentClass || hasWarningClass)) matchesFilter = false;
+                }
+                
+                card.style.display = (matchesSearch && matchesFilter) ? 'block' : 'none';
+            });
+        }
+
+        // Tab yönetimi
+        function showTab(tabName) {
+            document.querySelectorAll('.content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).style.display = 'block';
+            event.target.classList.add('active');
+            
+            if (tabName === 'list') {
+                loadCustomers();
+            } else if (tabName === 'dashboard') {
+                updateDashboard();
+            }
+        }
+
+        // Bildirim göster
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
