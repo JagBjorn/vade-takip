@@ -738,6 +738,10 @@
             <div class="header">
                 <div></div>
                 <div style="flex: 1; text-align: center;">
+                    <!-- FIRMA LOGOSU -->
+                    <div id="companyLogoHeader" style="display: none; margin-bottom: 10px;">
+                        <img id="companyLogoImg" src="" alt="Firma Logosu" style="height: 60px; max-width: 200px; object-fit: contain; border-radius: 10px; background: rgba(255,255,255,0.2); padding: 5px;">
+                    </div>
                     <h1 id="headerTitle" style="margin: 0;">💼 Vade Takip</h1>
                     <div style="position: relative; display: inline-block; margin-top: 10px;">
                         <button id="companySelector" onclick="toggleCompanyDropdown()" style="background: rgba(255,255,255,0.3); color: white; border: none; padding: 8px 20px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; min-width: 200px;">
@@ -1260,6 +1264,21 @@
             </div>
             
             <div id="companySettingsContent">
+                <div class="form-group">
+                    <label>Firma Logosu</label>
+                    <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                        <div id="companyLogoPreview" style="width: 100px; height: 100px; border: 2px dashed #ccc; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f8f9fa;">
+                            <span style="color: #999; font-size: 12px; text-align: center;">Logo Yok</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <input type="file" id="companyLogoInput" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+                            <button class="btn btn-secondary" onclick="document.getElementById('companyLogoInput').click()" style="width: 100%; margin-bottom: 8px;">📁 Logo Seç</button>
+                            <button class="btn btn-danger" onclick="removeCompanyLogo()" style="width: 100%;">🗑️ Logoyu Kaldır</button>
+                            <p style="font-size: 11px; color: #666; margin-top: 8px;">Önerilen: 500x500px, Max: 2MB</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Firma Adı *</label>
                     <input type="text" id="editCompanyName" placeholder="Firma adı">
@@ -2425,6 +2444,8 @@
                 document.getElementById('selectedCompanyName').textContent = selectedCompany.name;
                 // Header'ı da güncelle
                 updateHeader(selectedCompany.name);
+                // Logoyu da güncelle
+                updateHeaderLogo(selectedCompany.logo || null);
             }
 
             container.innerHTML = allCompaniesList.map(company => {
@@ -2457,6 +2478,8 @@
                 document.getElementById('selectedCompanyName').textContent = company.name;
                 // Header'ı hemen güncelle (loadSettings beklemeden)
                 updateHeader(company.name);
+                // Logoyu güncelle
+                updateHeaderLogo(company.logo || null);
             }
 
             toggleCompanyDropdown();
@@ -2550,6 +2573,10 @@
                 document.getElementById('editCompanyPhone').value = company.phone || '';
                 document.getElementById('editCompanyAddress').value = company.address || '';
                 document.getElementById('editCompanyContact').value = company.contactInfo || '';
+                
+                // Mevcut logoyu yükle
+                currentCompanyLogo = company.logo || null;
+                updateLogoPreview(currentCompanyLogo);
             }
 
             document.getElementById('companySettingsModal').classList.add('show');
@@ -2557,6 +2584,62 @@
 
         function closeCompanySettingsModal() {
             document.getElementById('companySettingsModal').classList.remove('show');
+        }
+
+        // LOGO YÖNETİMİ
+        let currentCompanyLogo = null;
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Dosya boyutu kontrolü (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('⚠️ Logo dosyası 2MB\'dan küçük olmalıdır!');
+                return;
+            }
+
+            // Dosya tipi kontrolü
+            if (!file.type.startsWith('image/')) {
+                alert('⚠️ Lütfen sadece resim dosyası seçin!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentCompanyLogo = e.target.result; // Base64
+                updateLogoPreview(currentCompanyLogo);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateLogoPreview(logoData) {
+            const preview = document.getElementById('companyLogoPreview');
+            if (logoData) {
+                preview.innerHTML = `<img src="${logoData}" style="width: 100%; height: 100%; object-fit: contain;">`;
+            } else {
+                preview.innerHTML = '<span style="color: #999; font-size: 12px; text-align: center;">Logo Yok</span>';
+            }
+        }
+
+        function removeCompanyLogo() {
+            if (!confirm('Firma logosunu kaldırmak istediğinize emin misiniz?')) {
+                return;
+            }
+            currentCompanyLogo = null;
+            updateLogoPreview(null);
+        }
+
+        function updateHeaderLogo(logoData) {
+            const logoHeader = document.getElementById('companyLogoHeader');
+            const logoImg = document.getElementById('companyLogoImg');
+            
+            if (logoData) {
+                logoImg.src = logoData;
+                logoHeader.style.display = 'block';
+            } else {
+                logoHeader.style.display = 'none';
+            }
         }
 
         async function saveCompanySettings() {
@@ -2568,16 +2651,27 @@
             }
 
             try {
-                await getSelectedCompanyRef().update({
+                const updateData = {
                     name: name,
                     phone: document.getElementById('editCompanyPhone').value.trim(),
                     address: document.getElementById('editCompanyAddress').value.trim(),
                     contactInfo: document.getElementById('editCompanyContact').value.trim(),
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+
+                // Logo varsa ekle
+                if (currentCompanyLogo !== null) {
+                    updateData.logo = currentCompanyLogo;
+                }
+
+                await getSelectedCompanyRef().update(updateData);
 
                 showNotification('✅ Firma bilgileri güncellendi');
                 closeCompanySettingsModal();
+                
+                // Header logosunu güncelle
+                updateHeaderLogo(currentCompanyLogo);
+                
                 await loadUserCompanies();
             } catch (error) {
                 console.error('Update company error:', error);
@@ -2925,19 +3019,32 @@
                         totalPending: 0,
                         paymentCount: 0,
                         lastPaymentDate: null,
-                        id: c.id // İlk ödemenin ID'si
+                        id: c.id, // İlk kaydın ID'si
+                        isCustomerOnly: c.isCustomerOnly || false
                     };
-                }
-                
-                uniqueCustomers[key].paymentCount++;
-                if (c.status === 'paid') {
-                    uniqueCustomers[key].totalPaid += parseFloat(c.amount || 0);
                 } else {
-                    uniqueCustomers[key].totalPending += parseFloat(c.amount || 0);
+                    // Eğer bu kayıt isCustomerOnly ise, bilgileri güncelle ve ID'yi değiştir
+                    if (c.isCustomerOnly) {
+                        uniqueCustomers[key].id = c.id;
+                        uniqueCustomers[key].email = c.email || uniqueCustomers[key].email;
+                        uniqueCustomers[key].address = c.address || uniqueCustomers[key].address;
+                        uniqueCustomers[key].note = c.note || uniqueCustomers[key].note;
+                        uniqueCustomers[key].isCustomerOnly = true;
+                    }
                 }
                 
-                if (!uniqueCustomers[key].lastPaymentDate || new Date(c.dueDate) > new Date(uniqueCustomers[key].lastPaymentDate)) {
-                    uniqueCustomers[key].lastPaymentDate = c.dueDate;
+                // Ödeme istatistikleri (isCustomerOnly kayıtlarını sayma)
+                if (!c.isCustomerOnly && c.status !== 'no_payment') {
+                    uniqueCustomers[key].paymentCount++;
+                    if (c.status === 'paid') {
+                        uniqueCustomers[key].totalPaid += parseFloat(c.amount || 0);
+                    } else {
+                        uniqueCustomers[key].totalPending += parseFloat(c.amount || 0);
+                    }
+                    
+                    if (!uniqueCustomers[key].lastPaymentDate || new Date(c.dueDate) > new Date(uniqueCustomers[key].lastPaymentDate)) {
+                        uniqueCustomers[key].lastPaymentDate = c.dueDate;
+                    }
                 }
             });
 
