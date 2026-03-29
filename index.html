@@ -2192,47 +2192,49 @@
             };
 
             try {
+                // Firma bilgisini al
+                const company = allCompaniesList.find(c => c.id === selectedCompanyId);
+                
+                // Kullanıcı profili bilgisini al
+                const currentUserProfile = (await getUserRef().get()).data();
+                const inviterName = currentUserProfile?.fullName || window.auth.currentUser.email;
+
                 // Davet edilen kullanıcının kayıtlı olup olmadığını kontrol et
                 const usersRef = window.db.collection('users');
                 const snapshot = await usersRef.where('email', '==', inviteEmail).get();
 
-                if (snapshot.empty) {
-                    alert('❌ Bu e-posta adresi sistemde kayıtlı değil. Önce kullanıcının kayıt olması gerekiyor.');
-                    return;
+                // EĞER KULLANICI KAYITLIYSA - Firestore'a kaydet
+                if (!snapshot.empty) {
+                    const invitedUserId = snapshot.docs[0].id;
+                    const invitedUserData = snapshot.docs[0].data();
+
+                    // Firmaya davet et
+                    const sharedData = {
+                        userId: invitedUserId,
+                        email: inviteEmail,
+                        fullName: invitedUserData.fullName || 'İsimsiz',
+                        permissions: permissions,
+                        sharedAt: new Date().toISOString()
+                    };
+
+                    await getCompanySharedUsersRef().doc(invitedUserId).set(sharedData);
+
+                    // Davet edilen kullanıcının sharedCompanies koleksiyonuna ekle
+                    await window.db.collection('users').doc(invitedUserId)
+                        .collection('sharedCompanies').doc(selectedCompanyId).set({
+                            ownerId: window.auth.currentUser.uid,
+                            ownerEmail: window.auth.currentUser.email,
+                            companyId: selectedCompanyId,
+                            companyName: company.name,
+                            permissions: permissions,
+                            invitedAt: new Date().toISOString()
+                        });
+                    
+                    // Listeyi yenile
+                    loadSharedUsers();
                 }
 
-                const invitedUserId = snapshot.docs[0].id;
-                const invitedUserData = snapshot.docs[0].data();
-
-                // Firma bilgisini al
-                const company = allCompaniesList.find(c => c.id === selectedCompanyId);
-
-                // Firmaya davet et (firma sahibinin companies koleksiyonunda sharedWith)
-                const sharedData = {
-                    userId: invitedUserId,
-                    email: inviteEmail,
-                    fullName: invitedUserData.fullName || 'İsimsiz',
-                    permissions: permissions,
-                    sharedAt: new Date().toISOString()
-                };
-
-                await getCompanySharedUsersRef().doc(invitedUserId).set(sharedData);
-
-                // Davet edilen kullanıcının sharedCompanies koleksiyonuna ekle
-                await window.db.collection('users').doc(invitedUserId)
-                    .collection('sharedCompanies').doc(selectedCompanyId).set({
-                        ownerId: window.auth.currentUser.uid,
-                        ownerEmail: window.auth.currentUser.email,
-                        companyId: selectedCompanyId,
-                        companyName: company.name,
-                        permissions: permissions,
-                        invitedAt: new Date().toISOString()
-                    });
-
-                // 📧 EMAIL GÖNDERİMİ
-                const currentUserProfile = (await getUserRef().get()).data();
-                const inviterName = currentUserProfile?.fullName || window.auth.currentUser.email;
-                
+                // HER HALÜKARDA EMAIL GÖNDER (kayıtlı olsun olmasın)
                 await sendInviteEmailJS(
                     inviteEmail,
                     inviterName,
@@ -2240,19 +2242,22 @@
                     permissions
                 );
 
-                showNotification(`✅ ${inviteEmail} ${company.name} firmasına davet edildi ve email gönderildi`);
+                if (snapshot.empty) {
+                    showNotification(`📧 ${inviteEmail} adresine davet emaili gönderildi. Kullanıcı kayıt olduktan sonra firmayı görebilecek.`);
+                } else {
+                    showNotification(`✅ ${inviteEmail} ${company.name} firmasına davet edildi ve email gönderildi`);
+                }
                 
                 // Formu temizle
                 document.getElementById('inviteEmail').value = '';
                 document.querySelectorAll('#permEdit, #permPayment, #permWhatsapp, #permAdd, #permDelete').forEach(cb => cb.checked = false);
                 
-                // Listeyi yenile
-                loadSharedUsers();
             } catch (error) {
                 console.error(error);
-                alert('Davet gönderilirken hata oluştu');
+                alert('Davet gönderilirken hata oluştu: ' + error.message);
             }
         }
+
 
         // 📧 EmailJS İLE EMAIL GÖNDERİM
         async function sendInviteEmailJS(toEmail, inviterName, companyName, permissions) {
@@ -4560,12 +4565,6 @@
         }
 
         // Modal close on outside click
-        document.getElementById('editModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeEditModal();
-            }
-        });
-
         document.getElementById('permissionsModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closePermissionsModal();
