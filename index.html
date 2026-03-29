@@ -1558,9 +1558,9 @@
         }
 
         // Initialize App - GLOBAL
-        function initializeApp() {
+        async function initializeApp() {
             requestNotificationPermission();
-            loadUserCompanies(); // Firmaları yükle
+            await loadUserCompanies(); // Firmaları yükle VE BEKLENİYOR
             loadCustomers();
             loadTemplates();
             loadSettings();
@@ -2070,7 +2070,14 @@
             
             if (allCompaniesList.length === 0) {
                 container.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">Henüz firma eklenmemiş</div>';
+                document.getElementById('selectedCompanyName').textContent = 'Firma Seçin';
                 return;
+            }
+
+            // Seçili firma adını güncelle
+            const selectedCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
+            if (selectedCompany) {
+                document.getElementById('selectedCompanyName').textContent = selectedCompany.name;
             }
 
             container.innerHTML = allCompaniesList.map(company => {
