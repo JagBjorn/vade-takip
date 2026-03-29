@@ -720,7 +720,7 @@
             <div id="registerForm" style="display: none;">
                 <div class="form-group">
                     <label>Ad Soyad *</label>
-                    <input type="text" id="registerFullName" placeholder="Ahmet Yılmaz" required>
+                    <input type="text" id="registerFullName" placeholder="Ad Soyad" required>
                 </div>
                 <div class="form-group">
                     <label>E-posta *</label>
@@ -868,7 +868,7 @@
                     </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
-                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
+                        <input type="text" id="newCustomerName" placeholder="Ad Soyad / Şirket Adı">
                     </div>
                     <div class="form-group">
                         <label>Telefon *</label>
@@ -1015,7 +1015,7 @@
 
                 <div class="form-group">
                     <label>Ad Soyad</label>
-                    <input type="text" id="userFullName" placeholder="Ahmet Yılmaz">
+                    <input type="text" id="userFullName" placeholder="Ad Soyad">
                 </div>
 
                 <button class="btn" onclick="saveProfile()">💾 Profil Bilgilerini Kaydet</button>
@@ -1040,19 +1040,6 @@
                 </div>
 
                 <button class="btn btn-secondary" onclick="changePassword()">🔐 Şifre Değiştir</button>
-
-                <hr style="margin: 30px 0; border: none; border-top: 2px solid #dc3545;">
-
-                <h3 style="color: #dc3545; margin-bottom: 15px;">⚠️ Hesabı Sil</h3>
-                <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
-                    Hesabınızı sildiğinizde:
-                    <br>• Tüm firmalarınız ve verileri kalıcı olarak silinir
-                    <br>• Paylaşılan tüm firmalar erişiminizden kaldırılır
-                    <br>• Bu işlem geri alınamaz!
-                </p>
-                <button class="btn btn-danger" onclick="deleteAccount()" style="width: 100%;">
-                    🗑️ Hesabımı Kalıcı Olarak Sil
-                </button>
 
                 <hr style="margin: 30px 0; border: none; border-top: 1px solid #e0e0e0;">
 
@@ -1127,7 +1114,7 @@
                 </div>
 
                 <button class="btn" onclick="saveSettings()">💾 Kaydet</button>
-                <button class="btn btn-danger" onclick="initiateAccountDeletion()" style="margin-top: 20px; width: 100%;">🗑️ Hesabı Sil</button>
+                <button class="btn btn-danger" onclick="deleteAccount()" style="margin-top: 20px; width: 100%;">🗑️ Hesabı Sil</button>
                 <button class="btn btn-secondary" onclick="clearAllData()" style="margin-top: 10px; width: 100%;">🗑️ Sadece Verileri Temizle (Hesap kalır)</button>
             </div>
         </div>
@@ -1183,7 +1170,7 @@
             
             <div class="form-group">
                 <label>Ad Soyad / Şirket Adı *</label>
-                <input type="text" id="modalCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
+                <input type="text" id="modalCustomerName" placeholder="Ad Soyad / Şirket Adı">
             </div>
 
             <div class="form-group">
@@ -4127,7 +4114,7 @@
             const templateDueDay = document.getElementById('templateDueDay').value;
             
             const sampleCustomer = {
-                name: 'Ahmet Yılmaz',
+                name: 'Ad Soyad',
                 amount: 5000,
                 dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
             };
@@ -4236,105 +4223,6 @@
             }
         }
 
-        async function initiateAccountDeletion() {
-            const confirmText = 'HESABINIZ TAMAMEN SİLİNECEK!\n\nDevam ederseniz hesabınız ve tüm verileriniz kalıcı olarak silinecek.\n\nBu işlem GERİ ALINAMAZ!\n\nEmin misiniz?';
-            
-            if (!confirm(confirmText)) {
-                return;
-            }
-
-            if (!confirm('SON UYARI!\n\nHesabınız şimdi silinecek. Bu işlem geri alınamaz!\n\nDevam etmek istiyor musunuz?')) {
-                return;
-            }
-
-            try {
-                // Önce verileri yedekle
-                await backupUserDataBeforeDeletion();
-                
-                // Sonra hesabı sil
-                await confirmAccountDeletion();
-
-            } catch (error) {
-                console.error('Account deletion error:', error);
-                alert('Hesap silme işlemi başarısız: ' + error.message);
-            }
-        }
-
-        async function backupUserDataBeforeDeletion() {
-            try {
-                const userId = window.auth.currentUser.uid;
-                const userEmail = window.auth.currentUser.email;
-                
-                showNotification('📦 Verileriniz yedekleniyor...');
-
-                const userData = {
-                    email: userEmail,
-                    deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    deletionDate: new Date().toISOString()
-                };
-
-                const userDoc = await getUserRef().get();
-                if (userDoc.exists) {
-                    userData.profile = userDoc.data();
-                }
-
-                const customersSnapshot = await getCustomersRef().get();
-                userData.customers = [];
-                customersSnapshot.forEach(doc => {
-                    userData.customers.push({ id: doc.id, ...doc.data() });
-                });
-
-                const settingsDoc = await getSettingsRef().get();
-                if (settingsDoc.exists) {
-                    userData.settings = settingsDoc.data();
-                }
-
-                const templatesDoc = await getTemplatesRef().get();
-                if (templatesDoc.exists) {
-                    userData.templates = templatesDoc.data();
-                }
-
-                await window.db.collection('deleted_accounts').doc(userId).set(userData);
-                
-                showNotification('✅ Veriler yedeklendi');
-            } catch (error) {
-                console.error('Backup error:', error);
-                throw new Error('Veri yedekleme başarısız');
-            }
-        }
-
-        async function confirmAccountDeletion() {
-            try {
-                showNotification('🗑️ Hesap siliniyor...');
-
-                const batch = window.db.batch();
-                
-                const customersSnapshot = await getCustomersRef().get();
-                customersSnapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
-                
-                batch.delete(getSettingsRef());
-                batch.delete(getTemplatesRef());
-                
-                await batch.commit();
-
-                await getUserRef().delete();
-                await window.auth.currentUser.delete();
-
-                alert('✅ Hesabınız başarıyla silindi.\n\nVerileriniz 30 gün boyunca yedekte tutulacak.');
-                window.location.reload();
-
-            } catch (error) {
-                console.error('Deletion error:', error);
-                
-                if (error.code === 'auth/requires-recent-login') {
-                    alert('❌ Güvenlik nedeniyle tekrar giriş yapmanız gerekiyor.\n\nÇıkış yapıp tekrar giriş yapın ve işlemi tekrarlayın.');
-                } else {
-                    throw error;
-                }
-            }
-        }
 
         // Dashboard
         async function updateDashboard() {
