@@ -897,27 +897,19 @@
 
                 <!-- Senet için -->
                 <div id="senetSection" class="form-group" style="display: none;">
-                    <label>Kaç Ay Senet? *</label>
-                    <select id="senetCount" onchange="updateSenetPreview()">
-                        <option value="">Seçiniz</option>
-                        <option value="1">1 Ay</option>
-                        <option value="2">2 Ay</option>
-                        <option value="3">3 Ay</option>
-                        <option value="4">4 Ay</option>
-                        <option value="5">5 Ay</option>
-                        <option value="6">6 Ay</option>
-                        <option value="7">7 Ay</option>
-                        <option value="8">8 Ay</option>
-                        <option value="9">9 Ay</option>
-                        <option value="10">10 Ay</option>
-                        <option value="11">11 Ay</option>
-                        <option value="12">12 Ay</option>
-                    </select>
-                </div>
-
-                <div id="senetFirstDateSection" class="form-group" style="display: none;">
-                    <label>İlk Senet Tarihi *</label>
-                    <input type="date" id="senetFirstDate" onchange="updateSenetPreview()">
+                    <label>Senet Bilgileri</label>
+                    <div id="senetList"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button type="button" class="btn btn-secondary" onclick="addSenetRow()" style="flex: 1; padding: 10px;">➕ Senet Ekle</button>
+                        <button type="button" class="btn btn-danger" onclick="removeSenetRow()" style="flex: 1; padding: 10px;">➖ Senet Çıkar</button>
+                    </div>
+                    <div style="margin-top: 15px; padding: 15px; background: #e8f5e9; border-radius: 10px; border: 2px solid #667eea;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #667eea;">Toplam Tutar:</strong>
+                            <strong style="color: #667eea; font-size: 18px;" id="senetTotal">₺0,00</strong>
+                        </div>
+                    </div>
+                    <small style="color: #666; margin-top: 10px; display: block;">İstediğiniz kadar senet ekleyebilir/çıkarabilirsiniz</small>
                 </div>
 
                 <div id="senetPreview" style="display: none; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #667eea;">
@@ -925,9 +917,9 @@
                     <div id="senetPreviewList" style="font-size: 13px; color: #666;"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="normalAmountSection">
                     <label>Tutar (₺) *</label>
-                    <input type="number" id="paymentAmount" placeholder="5000" step="0.01" required oninput="updateSenetPreview()">
+                    <input type="number" id="paymentAmount" placeholder="5000" step="0.01" required>
                 </div>
 
                 <div class="form-group">
@@ -2810,23 +2802,16 @@
 
             // Senet seçildi mi?
             if (days === 'senet') {
-                document.getElementById('singleDateSection').style.display = 'none';
+                document.getElementById('normalAmountSection').style.display = 'none';
                 document.getElementById('senetSection').style.display = 'block';
-                document.getElementById('senetFirstDateSection').style.display = 'block';
                 
-                // İlk senet tarihini bugünden 30 gün sonra ayarla
-                const today = new Date();
-                today.setDate(today.getDate() + 30);
-                const dateStr = today.toISOString().split('T')[0];
-                document.getElementById('senetFirstDate').value = dateStr;
-                
-                // Önizlemeyi güncelle
-                updateSenetPreview();
+                // İlk senet satırını ekle
+                window.senetRowCount = 1;
+                renderSenetList();
             } else {
                 // Normal tek vade
-                document.getElementById('singleDateSection').style.display = 'block';
+                document.getElementById('normalAmountSection').style.display = 'block';
                 document.getElementById('senetSection').style.display = 'none';
-                document.getElementById('senetFirstDateSection').style.display = 'none';
                 document.getElementById('senetPreview').style.display = 'none';
 
                 if (days > 0) {
@@ -2848,33 +2833,79 @@
             }
         }
 
-        function updateSenetPreview() {
-            const senetCount = parseInt(document.getElementById('senetCount').value);
-            const firstDate = document.getElementById('senetFirstDate').value;
-            const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
-            
-            if (!senetCount || !firstDate) {
-                document.getElementById('senetPreview').style.display = 'none';
-                return;
-            }
+        // SENET FONKSİYONLARI - ATLASPETBENZERİ ESNEKSİSTEM
+        window.senetRowCount = 1;
 
-            const amountPerSenet = (amount / senetCount).toFixed(2);
-            let previewHTML = '';
+        function addSenetRow() {
+            window.senetRowCount++;
+            renderSenetList();
+        }
+
+        function removeSenetRow() {
+            if (window.senetRowCount > 1) {
+                window.senetRowCount--;
+                renderSenetList();
+            } else {
+                alert('En az 1 senet olmalıdır!');
+            }
+        }
+
+        function renderSenetList() {
+            const container = document.getElementById('senetList');
+            const savedValues = {};
             
-            const startDate = new Date(firstDate);
-            
-            for (let i = 0; i < senetCount; i++) {
-                const senetDate = new Date(startDate);
-                senetDate.setMonth(senetDate.getMonth() + i);
-                
-                const dateStr = senetDate.toLocaleDateString('tr-TR');
-                previewHTML += `<div style="padding: 5px 0; border-bottom: 1px dashed #ddd;">
-                    ${i + 1}. Senet: ${dateStr} - ${amountPerSenet} ₺
-                </div>`;
+            // Mevcut değerleri kaydet
+            for (let i = 1; i <= window.senetRowCount + 1; i++) {
+                const amountInput = document.getElementById(`senet-${i}-amount`);
+                const dateInput = document.getElementById(`senet-${i}-date`);
+                if (amountInput) savedValues[`amount-${i}`] = amountInput.value;
+                if (dateInput) savedValues[`date-${i}`] = dateInput.value;
             }
             
-            document.getElementById('senetPreviewList').innerHTML = previewHTML;
-            document.getElementById('senetPreview').style.display = 'block';
+            container.innerHTML = '';
+            
+            // Senet satırlarını oluştur
+            for (let i = 1; i <= window.senetRowCount; i++) {
+                const senetDiv = document.createElement('div');
+                senetDiv.style.marginBottom = '15px';
+                senetDiv.style.padding = '15px';
+                senetDiv.style.background = '#f8f9fa';
+                senetDiv.style.borderRadius = '8px';
+                senetDiv.style.border = '2px solid #e0e0e0';
+                
+                senetDiv.innerHTML = `
+                    <div style="font-weight: 600; color: #667eea; margin-bottom: 10px; font-size: 15px;">${i}. Senet</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <small style="color: #666; display: block; margin-bottom: 5px; font-weight: 600;">Tutar (₺)</small>
+                            <input type="number" id="senet-${i}-amount" placeholder="₺5.000" step="0.01" value="${savedValues[`amount-${i}`] || ''}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;" oninput="calculateSenetTotal()">
+                        </div>
+                        <div>
+                            <small style="color: #666; display: block; margin-bottom: 5px; font-weight: 600;">Vade Tarihi</small>
+                            <input type="date" id="senet-${i}-date" value="${savedValues[`date-${i}`] || ''}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;">
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(senetDiv);
+            }
+            
+            calculateSenetTotal();
+        }
+
+        function calculateSenetTotal() {
+            let total = 0;
+            for (let i = 1; i <= window.senetRowCount; i++) {
+                const amountInput = document.getElementById(`senet-${i}-amount`);
+                if (amountInput && amountInput.value) {
+                    total += parseFloat(amountInput.value) || 0;
+                }
+            }
+            
+            const totalElement = document.getElementById('senetTotal');
+            if (totalElement) {
+                totalElement.textContent = '₺' + total.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+            }
         }
 
         // First Time Setup & Data Migration - GLOBAL
@@ -3608,17 +3639,24 @@
             const isSenet = selectedDays === 'senet';
             
             if (isSenet) {
-                // Senet için validasyon
-                const senetCount = parseInt(document.getElementById('senetCount').value);
-                const firstDate = document.getElementById('senetFirstDate').value;
-                
-                if (!senetCount || !firstDate) {
-                    alert('Lütfen senet sayısı ve ilk senet tarihini seçin!');
+                // Senet için validasyon - en az 1 senet olmalı
+                let hasValidSenet = false;
+                for (let i = 1; i <= window.senetRowCount; i++) {
+                    const amt = document.getElementById(`senet-${i}-amount`)?.value;
+                    const date = document.getElementById(`senet-${i}-date`)?.value;
+                    if (amt && date && parseFloat(amt) > 0) {
+                        hasValidSenet = true;
+                        break;
+                    }
+                }
+
+                if (!hasValidSenet) {
+                    alert('Lütfen en az bir senet için tutar ve tarih giriniz!');
                     return;
                 }
 
                 // TOPLU SENET EKLE
-                await addMultipleSenets(customerName, customerPhone, amount, note, senetCount, firstDate);
+                await addMultipleSenets(customerName, customerPhone, null, note, null, null);
             } else {
                 // TEK ÖDEME EKLE
                 const dueDate = document.getElementById('paymentDueDate').value;
@@ -3681,42 +3719,51 @@
                     timestamp: now
                 };
 
-                const amountPerSenet = (parseFloat(totalAmount) / senetCount).toFixed(2);
-                const startDate = new Date(firstDate);
-
                 const batch = window.db.batch();
+                let addedCount = 0;
 
-                for (let i = 0; i < senetCount; i++) {
-                    const senetDate = new Date(startDate);
-                    senetDate.setMonth(senetDate.getMonth() + i);
-                    const dueDateStr = senetDate.toISOString().split('T')[0];
+                // Her senet satırını kontrol et ve ekle
+                for (let i = 1; i <= window.senetRowCount; i++) {
+                    const amountInput = document.getElementById(`senet-${i}-amount`);
+                    const dateInput = document.getElementById(`senet-${i}-date`);
+                    
+                    const amt = amountInput?.value;
+                    const date = dateInput?.value;
+                    
+                    if (date && amt && parseFloat(amt) > 0) {
+                        const docRef = getCustomersRef().doc();
+                        batch.set(docRef, {
+                            name: customerName,
+                            phone: customerPhone,
+                            dueDate: date,
+                            amount: parseFloat(amt),
+                            note: note ? `${note} (${i}/${window.senetRowCount} Senet)` : `${i}/${window.senetRowCount} Senet`,
+                            paymentType: `Senet ${i}/${window.senetRowCount}`,
+                            status: 'pending',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdBy: createdBy,
+                            lastModifiedBy: createdBy,
+                            paidDate: null,
+                            senetNumber: i,
+                            totalSenets: window.senetRowCount,
+                            activityLog: [{
+                                action: 'created',
+                                by: createdBy,
+                                timestamp: now
+                            }]
+                        });
+                        addedCount++;
+                    }
+                }
 
-                    const docRef = getCustomersRef().doc();
-                    batch.set(docRef, {
-                        name: customerName,
-                        phone: customerPhone,
-                        dueDate: dueDateStr,
-                        amount: parseFloat(amountPerSenet),
-                        note: note ? `${note} (${i + 1}/${senetCount} Senet)` : `${i + 1}/${senetCount} Senet`,
-                        paymentType: `Senet ${i + 1}/${senetCount}`,
-                        status: 'pending',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        createdBy: createdBy,
-                        lastModifiedBy: createdBy,
-                        paidDate: null,
-                        senetNumber: i + 1,
-                        totalSenets: senetCount,
-                        activityLog: [{
-                            action: 'created',
-                            by: createdBy,
-                            timestamp: now
-                        }]
-                    });
+                if (addedCount === 0) {
+                    alert('⚠️ En az bir senet için tutar ve tarih girmelisiniz!');
+                    return;
                 }
 
                 await batch.commit();
 
-                showNotification(`✅ ${senetCount} adet senet eklendi!`);
+                showNotification(`✅ ${addedCount} adet senet eklendi!`);
                 resetPaymentForm();
             } catch (error) {
                 console.error('Add senets error:', error);
@@ -3732,12 +3779,16 @@
             document.getElementById('newCustomerName').value = '';
             document.getElementById('newCustomerPhone').value = '';
             document.getElementById('newCustomerEmail').value = '';
-            document.getElementById('senetCount').value = '';
-            document.getElementById('senetFirstDate').value = '';
-            document.getElementById('senetPreview').style.display = 'none';
-            document.getElementById('singleDateSection').style.display = 'block';
+            
+            // Senet alanlarını temizle
+            document.getElementById('senetList').innerHTML = '';
+            document.getElementById('senetTotal').textContent = '₺0,00';
+            window.senetRowCount = 1;
+            
+            document.getElementById('normalAmountSection').style.display = 'block';
             document.getElementById('senetSection').style.display = 'none';
-            document.getElementById('senetFirstDateSection').style.display = 'none';
+            document.getElementById('senetPreview').style.display = 'none';
+            
             selectedPaymentType = '';
             selectedDays = 0;
             document.querySelectorAll('.payment-type-btn').forEach(btn => {
