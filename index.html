@@ -809,7 +809,7 @@
                 
                 <div class="form-group">
                     <label>Müşteri Ara / Seç *</label>
-                    <input type="text" id="customerSearchInput" placeholder="🔍 Müşteri adı veya telefon yazın..." oninput="searchCustomersForPayment()" autocomplete="off">
+                    <input type="text" id="paymentCustomerSearchInput" placeholder="🔍 Müşteri adı veya telefon yazın..." oninput="searchCustomersForPayment()" autocomplete="off">
                     <div id="customerSearchResults" style="display: none; max-height: 200px; overflow-y: auto; border: 2px solid #667eea; border-radius: 10px; margin-top: 10px; background: white;"></div>
                 </div>
 
@@ -1369,6 +1369,17 @@
             }
 
             try {
+                // MÜŞTERI TEKRAR KONTROLÜ
+                const existingCustomers = await getCustomersRef()
+                    .where('name', '==', name)
+                    .where('phone', '==', phone)
+                    .get();
+
+                if (!existingCustomers.empty) {
+                    alert(`⚠️ Bu müşteri zaten kayıtlı!\n\nİsim: ${name}\nTelefon: ${phone}\n\nLütfen mevcut müşteriyi kullanın.`);
+                    return;
+                }
+
                 const now = new Date().toISOString();
                 const userProfile = (await getUserRef().get()).data();
                 const createdBy = {
@@ -2573,7 +2584,7 @@
         }
 
         function searchCustomersForPayment() {
-            const searchTerm = document.getElementById('customerSearchInput').value.trim().toLowerCase();
+            const searchTerm = document.getElementById('paymentCustomerSearchInput').value.trim().toLowerCase();
             const resultsContainer = document.getElementById('customerSearchResults');
             
             if (searchTerm.length < 2) {
@@ -2614,7 +2625,7 @@
         function selectCustomerForPayment(customer) {
             selectedCustomerForPayment = customer;
             
-            document.getElementById('customerSearchInput').value = customer.name;
+            document.getElementById('paymentCustomerSearchInput').value = customer.name;
             document.getElementById('selectedCustomerName').textContent = customer.name;
             document.getElementById('selectedCustomerPhone').textContent = '📱 ' + customer.phone;
             document.getElementById('selectedCustomerInfo').style.display = 'block';
@@ -2624,7 +2635,7 @@
 
         function clearSelectedCustomer() {
             selectedCustomerForPayment = null;
-            document.getElementById('customerSearchInput').value = '';
+            document.getElementById('paymentCustomerSearchInput').value = '';
             document.getElementById('selectedCustomerInfo').style.display = 'none';
             document.getElementById('newCustomerFields').style.display = 'none';
         }
