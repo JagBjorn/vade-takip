@@ -721,14 +721,25 @@
                 <h2 style="margin-bottom: 20px;">➕ Yeni Ödeme Ekle</h2>
                 
                 <div class="form-group">
-                    <label>Müşteri Seç *</label>
-                    <select id="paymentCustomerSelect" onchange="handleCustomerSelect()">
-                        <option value="">-- Müşteri Seçin --</option>
-                        <option value="new">➕ Yeni Müşteri Ekle</option>
-                    </select>
+                    <label>Müşteri Ara / Seç *</label>
+                    <input type="text" id="customerSearchInput" placeholder="🔍 Müşteri adı veya telefon yazın..." oninput="searchCustomersForPayment()" autocomplete="off">
+                    <div id="customerSearchResults" style="display: none; max-height: 200px; overflow-y: auto; border: 2px solid #667eea; border-radius: 10px; margin-top: 10px; background: white;"></div>
+                </div>
+
+                <div id="selectedCustomerInfo" style="display: none; background: #e8f5e9; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong id="selectedCustomerName" style="font-size: 16px;"></strong><br>
+                            <span id="selectedCustomerPhone" style="color: #666; font-size: 14px;"></span>
+                        </div>
+                        <button type="button" onclick="clearSelectedCustomer()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #dc3545;">×</button>
+                    </div>
                 </div>
 
                 <div id="newCustomerFields" style="display: none;">
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                        <strong>🆕 Yeni Müşteri Bilgileri</strong>
+                    </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
                         <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
@@ -740,10 +751,6 @@
                     <div class="form-group">
                         <label>E-posta</label>
                         <input type="email" id="newCustomerEmail" placeholder="ornek@email.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Adres</label>
-                        <input type="text" id="newCustomerAddress" placeholder="İstanbul, Kadıköy">
                     </div>
                 </div>
                 
@@ -1437,14 +1444,14 @@
         // Initialize App - GLOBAL
         function initializeApp() {
             requestNotificationPermission();
-            loadCustomersList();
-            loadPayments();
+            loadCustomers();
             loadTemplates();
             loadSettings();
             loadProfile();
             loadSharedUsers();
             updateDashboard();
             startNotificationScheduler();
+            loadAllCustomersForSearch();
         }
 
         // Profile Functions - GLOBAL
@@ -1781,6 +1788,182 @@
                 const today = new Date();
                 today.setDate(today.getDate() + days);
                 document.getElementById('dueDate').value = today.toISOString().split('T')[0];
+            }
+        }
+
+        // Customer Search for Payment - GLOBAL
+        let selectedCustomerForPayment = null;
+        let allCustomersForSearch = [];
+
+        async function loadAllCustomersForSearch() {
+            try {
+                const snapshot = await getCustomersRef().get();
+                const customersMap = {};
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const key = data.name + '|' + data.phone;
+                    if (!customersMap[key]) {
+                        customersMap[key] = {
+                            name: data.name,
+                            phone: data.phone
+                        };
+                    }
+                });
+                
+                allCustomersForSearch = Object.values(customersMap);
+            } catch (error) {
+                console.error('Load customers error:', error);
+            }
+        }
+
+        function searchCustomersForPayment() {
+            const searchTerm = document.getElementById('customerSearchInput').value.trim().toLowerCase();
+            const resultsContainer = document.getElementById('customerSearchResults');
+            
+            if (searchTerm.length < 2) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+
+            const filtered = allCustomersForSearch.filter(c => 
+                c.name.toLowerCase().includes(searchTerm) || 
+                c.phone.includes(searchTerm)
+            );
+
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div style="padding: 15px; text-align: center; color: #666;">
+                        <p>Müşteri bulunamadı</p>
+                        <button class="btn btn-small" onclick="showNewCustomerFields()" style="margin-top: 10px;">➕ Yeni Müşteri Ekle</button>
+                    </div>
+                `;
+                resultsContainer.style.display = 'block';
+                return;
+            }
+
+            resultsContainer.innerHTML = filtered.slice(0, 5).map(customer => `
+                <div onclick='selectCustomerForPayment(${JSON.stringify(customer).replace(/'/g, "&#39;")})' style="padding: 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                    <strong>${customer.name}</strong><br>
+                    <span style="color: #666; font-size: 13px;">📱 ${customer.phone}</span>
+                </div>
+            `).join('') + `
+                <div onclick="showNewCustomerFields()" style="padding: 12px; text-align: center; background: #f8f9fa; cursor: pointer; font-weight: 600; color: #667eea;" onmouseover="this.style.background='#e8eaf6'" onmouseout="this.style.background='#f8f9fa'">
+                    ➕ Yeni Müşteri Ekle
+                </div>
+            `;
+            
+            resultsContainer.style.display = 'block';
+        }
+
+        function selectCustomerForPayment(customer) {
+            selectedCustomerForPayment = customer;
+            
+            document.getElementById('customerSearchInput').value = customer.name;
+            document.getElementById('selectedCustomerName').textContent = customer.name;
+            document.getElementById('selectedCustomerPhone').textContent = '📱 ' + customer.phone;
+            document.getElementById('selectedCustomerInfo').style.display = 'block';
+            document.getElementById('customerSearchResults').style.display = 'none';
+            document.getElementById('newCustomerFields').style.display = 'none';
+        }
+
+        function clearSelectedCustomer() {
+            selectedCustomerForPayment = null;
+            document.getElementById('customerSearchInput').value = '';
+            document.getElementById('selectedCustomerInfo').style.display = 'none';
+            document.getElementById('newCustomerFields').style.display = 'none';
+        }
+
+        function showNewCustomerFields() {
+            document.getElementById('customerSearchResults').style.display = 'none';
+            document.getElementById('selectedCustomerInfo').style.display = 'none';
+            document.getElementById('newCustomerFields').style.display = 'block';
+            selectedCustomerForPayment = null;
+        }
+
+        async function addPayment() {
+            const dueDate = document.getElementById('paymentDueDate').value;
+            const amount = document.getElementById('paymentAmount').value;
+            const note = document.getElementById('paymentNote').value.trim();
+
+            let customerName, customerPhone;
+
+            // Seçili müşteri var mı?
+            if (selectedCustomerForPayment) {
+                customerName = selectedCustomerForPayment.name;
+                customerPhone = selectedCustomerForPayment.phone;
+            } 
+            // Yeni müşteri mi ekleniyor?
+            else if (document.getElementById('newCustomerFields').style.display === 'block') {
+                customerName = document.getElementById('newCustomerName').value.trim();
+                customerPhone = document.getElementById('newCustomerPhone').value.trim();
+                
+                if (!customerName || !customerPhone) {
+                    alert('Lütfen müşteri adı ve telefon giriniz');
+                    return;
+                }
+            } 
+            // Hiçbiri seçilmemiş
+            else {
+                alert('Lütfen bir müşteri seçin veya yeni müşteri bilgilerini girin');
+                return;
+            }
+
+            if (!dueDate || !amount) {
+                alert('Lütfen vade tarihi ve tutar giriniz');
+                return;
+            }
+
+            try {
+                const userProfile = (await getUserRef().get()).data();
+                const createdBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await getCustomersRef().add({
+                    name: customerName,
+                    phone: customerPhone,
+                    dueDate,
+                    amount: parseFloat(amount),
+                    note,
+                    paymentType: selectedPaymentType || 'Manuel',
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: createdBy,
+                    lastModifiedBy: createdBy,
+                    paidDate: null,
+                    activityLog: [{
+                        action: 'created',
+                        by: createdBy,
+                        timestamp: new Date().toISOString()
+                    }]
+                });
+
+                showNotification('✅ Ödeme eklendi');
+                
+                // Formu temizle
+                clearSelectedCustomer();
+                document.getElementById('paymentDueDate').value = '';
+                document.getElementById('paymentAmount').value = '';
+                document.getElementById('paymentNote').value = '';
+                document.getElementById('newCustomerName').value = '';
+                document.getElementById('newCustomerPhone').value = '';
+                document.getElementById('newCustomerEmail').value = '';
+                selectedPaymentType = '';
+                selectedDays = 0;
+                document.querySelectorAll('.payment-type-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                // Müşteri listesini güncelle
+                await loadAllCustomersForSearch();
+                
+            } catch (error) {
+                console.error(error);
+                alert('Ödeme eklenirken hata oluştu');
             }
         }
 
