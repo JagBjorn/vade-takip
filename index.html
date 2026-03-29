@@ -10,6 +10,36 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23667eea' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle'>💼</text></svg>">
     <title>Vade Takip Sistemi</title>
     <style>
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+        }
+
+        #loadingOverlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            font-size: 50px;
+            margin-bottom: 20px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -565,6 +595,13 @@
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <div class="loading-spinner">💼</div>
+        <div style="font-size: 18px;">Yükleniyor...</div>
+        <div id="loadingStatus" style="font-size: 14px; margin-top: 10px; opacity: 0.8;"></div>
+    </div>
+
     <!-- AUTH SCREEN -->
     <div id="authScreen" class="auth-container">
         <div class="auth-box">
@@ -866,26 +903,25 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // Global loading state
-        let scriptsLoaded = {
-            firebaseApp: false,
-            firebaseAuth: false,
-            firebaseFirestore: false,
-            xlsx: false
-        };
+        // Loading status helper
+        function updateLoadingStatus(msg) {
+            const statusEl = document.getElementById('loadingStatus');
+            if (statusEl) statusEl.textContent = msg;
+            console.log('Loading:', msg);
+        }
 
         // Load scripts dynamically
         function loadScript(src, name) {
+            updateLoadingStatus(name + ' yükleniyor...');
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
                 script.onload = () => {
-                    console.log(name + ' loaded');
-                    scriptsLoaded[name] = true;
+                    console.log(name + ' loaded successfully');
                     resolve();
                 };
                 script.onerror = () => {
-                    console.error(name + ' failed to load');
+                    console.error(name + ' failed to load from:', src);
                     reject(new Error(name + ' yüklenemedi'));
                 };
                 document.head.appendChild(script);
@@ -895,40 +931,52 @@
         // Load all scripts
         async function loadAllScripts() {
             try {
-                // Show loading message
-                document.body.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; color: white; font-size: 18px;">📦 Yükleniyor...</div>';
+                updateLoadingStatus('Firebase yükleniyor...');
+                
+                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js', 'Firebase App');
+                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js', 'Firebase Auth');
+                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js', 'Firebase Firestore');
+                
+                updateLoadingStatus('Excel kütüphanesi yükleniyor...');
+                await loadScript('https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js', 'SheetJS');
 
-                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js', 'firebaseApp');
-                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js', 'firebaseAuth');
-                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js', 'firebaseFirestore');
-                await loadScript('https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js', 'xlsx');
-
-                // Restore original HTML
-                document.body.innerHTML = originalHTML;
+                updateLoadingStatus('Başlatılıyor...');
+                
+                // Hide loading overlay
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) overlay.classList.add('hidden');
                 
                 // Initialize Firebase
-                initializeFirebase();
+                setTimeout(() => {
+                    initializeFirebase();
+                }, 100);
+                
             } catch (error) {
                 console.error('Script loading error:', error);
-                document.body.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; color: white; padding: 20px; text-align: center;">
+                updateLoadingStatus('');
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.innerHTML = `
                         <div style="font-size: 50px; margin-bottom: 20px;">⚠️</div>
-                        <div style="font-size: 20px; margin-bottom: 10px;">Firebase Yüklenemedi</div>
+                        <div style="font-size: 20px; margin-bottom: 10px;">Yükleme Hatası</div>
                         <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">İnternet bağlantınızı kontrol edin</div>
                         <button onclick="location.reload()" style="padding: 15px 30px; background: white; color: #667eea; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Tekrar Dene</button>
-                    </div>
-                `;
+                    `;
+                }
             }
         }
 
-        // Save original HTML before replacing
-        let originalHTML = '';
-        document.addEventListener('DOMContentLoaded', function() {
-            originalHTML = document.body.innerHTML;
+        // Start loading when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadAllScripts);
+        } else {
             loadAllScripts();
-        });
+        }
 
         function initializeFirebase() {
+            console.log('initializeFirebase called');
+            console.log('firebase defined?', typeof firebase !== 'undefined');
+            
             if (typeof firebase === 'undefined') {
                 console.error('Firebase SDK not loaded after script injection');
                 alert('Firebase başlatılamadı. Lütfen sayfayı yenileyin.');
@@ -997,26 +1045,38 @@
         }
 
         async function handleLogin() {
+            console.log('handleLogin called');
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
+            console.log('Email:', email, 'Password length:', password.length);
 
             if (!email || !password) {
                 alert('Lütfen tüm alanları doldurun');
                 return;
             }
 
+            if (typeof auth === 'undefined') {
+                alert('Firebase Auth yüklenmemiş! Sayfayı yenileyin.');
+                console.error('auth is undefined');
+                return;
+            }
+
             try {
-                await auth.signInWithEmailAndPassword(email, password);
+                console.log('Attempting login...');
+                const result = await auth.signInWithEmailAndPassword(email, password);
+                console.log('Login successful:', result);
                 showNotification('✅ Giriş başarılı!');
             } catch (error) {
-                console.error(error);
+                console.error('Login error:', error);
                 alert('Giriş hatası: ' + getErrorMessage(error.code));
             }
         }
 
         async function handleRegister() {
+            console.log('handleRegister called');
             const email = document.getElementById('registerEmail').value.trim();
             const password = document.getElementById('registerPassword').value;
+            console.log('Email:', email, 'Password length:', password.length);
 
             if (!email || !password) {
                 alert('Lütfen tüm alanları doldurun');
@@ -1028,11 +1088,19 @@
                 return;
             }
 
+            if (typeof auth === 'undefined') {
+                alert('Firebase Auth yüklenmemiş! Sayfayı yenileyin.');
+                console.error('auth is undefined');
+                return;
+            }
+
             try {
-                await auth.createUserWithEmailAndPassword(email, password);
+                console.log('Attempting registration...');
+                const result = await auth.createUserWithEmailAndPassword(email, password);
+                console.log('Registration successful:', result);
                 showNotification('✅ Kayıt başarılı!');
             } catch (error) {
-                console.error(error);
+                console.error('Registration error:', error);
                 alert('Kayıt hatası: ' + getErrorMessage(error.code));
             }
         }
