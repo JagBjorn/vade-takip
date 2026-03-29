@@ -655,7 +655,21 @@
         <div class="container">
             <div class="header">
                 <div></div>
-                <h1 id="headerTitle">💼 Vade Takip</h1>
+                <div style="flex: 1; text-align: center;">
+                    <h1 id="headerTitle" style="margin: 0;">💼 Vade Takip</h1>
+                    <div style="position: relative; display: inline-block; margin-top: 10px;">
+                        <button id="companySelector" onclick="toggleCompanyDropdown()" style="background: rgba(255,255,255,0.3); color: white; border: none; padding: 8px 20px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; min-width: 200px;">
+                            <span id="selectedCompanyName">Firma Seçin</span> ▼
+                        </button>
+                        <div id="companyDropdown" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 10px; background: white; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); min-width: 250px; z-index: 1000;">
+                            <div id="companyList" style="max-height: 300px; overflow-y: auto;"></div>
+                            <div style="border-top: 2px solid #e0e0e0; padding: 10px;">
+                                <button onclick="openCreateCompanyModal()" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">➕ Yeni Firma Ekle</button>
+                                <button onclick="openCompanySettingsModal()" style="width: 100%; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; margin-top: 5px;">⚙️ Firma Ayarları</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <button class="logout-btn" onclick="handleLogout()">Çıkış</button>
             </div>
 
@@ -1111,6 +1125,73 @@
         </div>
     </div>
 
+    <!-- Create Company Modal -->
+    <div id="createCompanyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🏢 Yeni Firma Oluştur</h3>
+                <button class="close-modal" onclick="closeCreateCompanyModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Firma Adı *</label>
+                <input type="text" id="createCompanyName" placeholder="Orijin Akvaryum">
+            </div>
+
+            <div class="form-group">
+                <label>Telefon</label>
+                <input type="tel" id="createCompanyPhone" placeholder="0532 123 45 67">
+            </div>
+
+            <div class="form-group">
+                <label>Adres</label>
+                <input type="text" id="createCompanyAddress" placeholder="Samsun, Atakum">
+            </div>
+
+            <div class="form-group">
+                <label>İletişim Bilgisi</label>
+                <textarea id="createCompanyContact" placeholder="E-posta, telefon, adres..."></textarea>
+            </div>
+
+            <button class="btn" onclick="createNewCompany()">💾 Firma Oluştur</button>
+        </div>
+    </div>
+
+    <!-- Company Settings Modal -->
+    <div id="companySettingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">⚙️ Firma Ayarları</h3>
+                <button class="close-modal" onclick="closeCompanySettingsModal()">×</button>
+            </div>
+            
+            <div id="companySettingsContent">
+                <div class="form-group">
+                    <label>Firma Adı *</label>
+                    <input type="text" id="editCompanyName" placeholder="Firma adı">
+                </div>
+
+                <div class="form-group">
+                    <label>Telefon</label>
+                    <input type="tel" id="editCompanyPhone" placeholder="0532 123 45 67">
+                </div>
+
+                <div class="form-group">
+                    <label>Adres</label>
+                    <input type="text" id="editCompanyAddress" placeholder="Adres">
+                </div>
+
+                <div class="form-group">
+                    <label>İletişim Bilgisi</label>
+                    <textarea id="editCompanyContact" placeholder="İletişim bilgileri..."></textarea>
+                </div>
+
+                <button class="btn" onclick="saveCompanySettings()">💾 Kaydet</button>
+                <button class="btn btn-danger" onclick="deleteCurrentCompany()" style="margin-top: 10px; width: 100%;">🗑️ Firmayı Sil</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Customer Modal -->
     <div id="editCustomerModal" class="modal">
         <div class="modal-content">
@@ -1177,6 +1258,11 @@
         let currentFilter = 'all';
         let allCustomersList = [];
         let allPaymentsList = [];
+        
+        // Company Management Variables
+        let selectedCompanyId = null;
+        let allCompaniesList = [];
+        let companiesListener = null;
 
         // Loading status helper
         function updateLoadingStatus(msg) {
@@ -1275,11 +1361,15 @@
         window.db = firebase.firestore();
 
         // Auth State Observer
-        window.auth.onAuthStateChanged(user => {
+        window.auth.onAuthStateChanged(async user => {
             if (user) {
                 currentUser = user;
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
+                
+                // İlk kurulum kontrolü
+                await checkFirstTimeSetup();
+                
                 initializeApp();
             } else {
                 currentUser = null;
@@ -1322,20 +1412,46 @@
             return window.db.collection('users').doc(window.auth.currentUser.uid);
         }
 
+        function getCompaniesRef() {
+            return getUserRef().collection('companies');
+        }
+
+        function getSelectedCompanyRef() {
+            if (!selectedCompanyId) {
+                console.error('No company selected!');
+                return null;
+            }
+            return getCompaniesRef().doc(selectedCompanyId);
+        }
+
         function getCustomersRef() {
-            return getUserRef().collection('customers');
+            const companyRef = getSelectedCompanyRef();
+            if (!companyRef) return null;
+            return companyRef.collection('customers');
         }
 
         function getPaymentsRef() {
-            return getUserRef().collection('payments');
+            const companyRef = getSelectedCompanyRef();
+            if (!companyRef) return null;
+            return companyRef.collection('payments');
         }
 
         function getSettingsRef() {
-            return getUserRef().collection('settings').doc('config');
+            const companyRef = getSelectedCompanyRef();
+            if (!companyRef) return null;
+            return companyRef.collection('settings').doc('config');
         }
 
         function getTemplatesRef() {
-            return getUserRef().collection('templates').doc('messages');
+            const companyRef = getSelectedCompanyRef();
+            if (!companyRef) return null;
+            return companyRef.collection('templates').doc('messages');
+        }
+
+        function getCompanySharedUsersRef() {
+            const companyRef = getSelectedCompanyRef();
+            if (!companyRef) return null;
+            return companyRef.collection('sharedWith');
         }
 
         async function handleLogin() {
@@ -1444,6 +1560,7 @@
         // Initialize App - GLOBAL
         function initializeApp() {
             requestNotificationPermission();
+            loadUserCompanies(); // Firmaları yükle
             loadCustomers();
             loadTemplates();
             loadSettings();
@@ -1549,6 +1666,11 @@
         async function inviteUser() {
             const inviteEmail = document.getElementById('inviteEmail').value.trim();
 
+            if (!selectedCompanyId) {
+                alert('Lütfen önce bir firma seçin');
+                return;
+            }
+
             if (!inviteEmail) {
                 alert('Lütfen e-posta adresi girin');
                 return;
@@ -1582,7 +1704,10 @@
                 const invitedUserId = snapshot.docs[0].id;
                 const invitedUserData = snapshot.docs[0].data();
 
-                // Kendi sharedWith listene ekle (yetkiler ile)
+                // Firma bilgisini al
+                const company = allCompaniesList.find(c => c.id === selectedCompanyId);
+
+                // Firmaya davet et (firma sahibinin companies koleksiyonunda sharedWith)
                 const sharedData = {
                     userId: invitedUserId,
                     email: inviteEmail,
@@ -1591,58 +1716,53 @@
                     sharedAt: new Date().toISOString()
                 };
 
-                await getUserRef().update({
-                    sharedWith: firebase.firestore.FieldValue.arrayUnion(sharedData)
-                });
+                await getCompanySharedUsersRef().doc(invitedUserId).set(sharedData);
 
-                // Karşı tarafa da ekle (tam yetki - çünkü o asıl sahibi)
-                const reverseSharedData = {
-                    userId: window.auth.currentUser.uid,
-                    email: window.auth.currentUser.email,
-                    fullName: (await getUserRef().get()).data()?.fullName || 'İsimsiz',
-                    permissions: {
-                        view: true,
-                        edit: true,
-                        payment: true,
-                        whatsapp: true,
-                        add: true,
-                        delete: true
-                    },
-                    sharedAt: new Date().toISOString()
-                };
+                // Davet edilen kullanıcının sharedCompanies koleksiyonuna ekle
+                await window.db.collection('users').doc(invitedUserId)
+                    .collection('sharedCompanies').doc(selectedCompanyId).set({
+                        ownerId: window.auth.currentUser.uid,
+                        ownerEmail: window.auth.currentUser.email,
+                        companyId: selectedCompanyId,
+                        companyName: company.name,
+                        permissions: permissions,
+                        invitedAt: new Date().toISOString()
+                    });
 
-                await window.db.collection('users').doc(invitedUserId).update({
-                    sharedWith: firebase.firestore.FieldValue.arrayUnion(reverseSharedData)
-                });
-
+                showNotification(`✅ ${inviteEmail} ${company.name} firmasına davet edildi`);
+                
+                // Formu temizle
                 document.getElementById('inviteEmail').value = '';
-                // Checkbox'ları sıfırla
-                document.getElementById('permEdit').checked = true;
-                document.getElementById('permPayment').checked = true;
-                document.getElementById('permWhatsapp').checked = true;
-                document.getElementById('permAdd').checked = true;
-                document.getElementById('permDelete').checked = false;
-
-                showNotification('✅ Kullanıcı başarıyla eklendi');
+                document.querySelectorAll('#permEdit, #permPayment, #permWhatsapp, #permAdd, #permDelete').forEach(cb => cb.checked = false);
+                
+                // Listeyi yenile
                 loadSharedUsers();
             } catch (error) {
-                console.error('Invite error:', error);
-                alert('Davet gönderme başarısız: ' + error.message);
+                console.error(error);
+                alert('Davet gönderilirken hata oluştu');
             }
         }
 
         async function loadSharedUsers() {
             const container = document.getElementById('sharedUsersContent');
 
+            if (!selectedCompanyId) {
+                container.innerHTML = '<p style="color: #666;">Lütfen önce bir firma seçin</p>';
+                return;
+            }
+
             try {
-                const userDoc = await getUserRef().get();
+                const sharedSnapshot = await getCompanySharedUsersRef().get();
                 
-                if (!userDoc.exists || !userDoc.data().sharedWith || userDoc.data().sharedWith.length === 0) {
+                if (sharedSnapshot.empty) {
                     container.innerHTML = '<p style="color: #666;">Henüz paylaşılan kullanıcı yok</p>';
                     return;
                 }
 
-                const sharedUsers = userDoc.data().sharedWith;
+                const sharedUsers = [];
+                sharedSnapshot.forEach(doc => {
+                    sharedUsers.push({ id: doc.id, ...doc.data() });
+                });
 
                 container.innerHTML = sharedUsers.map(user => {
                     const perms = user.permissions || {};
@@ -1678,47 +1798,36 @@
         }
 
         async function removeSharedUser(userId) {
-            if (!confirm('Bu kullanıcıyı paylaşımdan kaldırmak istediğinize emin misiniz?')) {
+            if (!confirm('Bu kullanıcıyı firmadan kaldırmak istediğinize emin misiniz?')) {
                 return;
             }
 
             try {
-                // Kendi sharedWith listenden kaldır
-                const userDoc = await getUserRef().get();
-                const sharedWith = userDoc.data().sharedWith || [];
-                const updatedSharedWith = sharedWith.filter(u => u.userId !== userId);
-
-                await getUserRef().update({
-                    sharedWith: updatedSharedWith
-                });
+                // Firmadan kaldır
+                await getCompanySharedUsersRef().doc(userId).delete();
 
                 // Karşı taraftan da kaldır
-                const otherUserDoc = await window.db.collection('users').doc(userId).get();
-                const otherSharedWith = otherUserDoc.data()?.sharedWith || [];
-                const otherUpdatedSharedWith = otherSharedWith.filter(u => u.userId !== window.auth.currentUser.uid);
-
-                await window.db.collection('users').doc(userId).update({
-                    sharedWith: otherUpdatedSharedWith
-                });
+                await window.db.collection('users').doc(userId)
+                    .collection('sharedCompanies').doc(selectedCompanyId).delete();
 
                 showNotification('✅ Kullanıcı kaldırıldı');
                 loadSharedUsers();
             } catch (error) {
                 console.error('Remove shared user error:', error);
-                alert('Kaldırma başarısız: ' + error.message);
+                alert('Kaldırma başarısız');
             }
         }
 
         async function editUserPermissions(userId) {
             try {
-                const userDoc = await getUserRef().get();
-                const sharedWith = userDoc.data().sharedWith || [];
-                const user = sharedWith.find(u => u.userId === userId);
+                const sharedUserDoc = await getCompanySharedUsersRef().doc(userId).get();
 
-                if (!user) {
+                if (!sharedUserDoc.exists) {
                     alert('Kullanıcı bulunamadı');
                     return;
                 }
+
+                const user = sharedUserDoc.data();
 
                 document.getElementById('editPermUserId').value = userId;
                 document.getElementById('editPermEdit').checked = user.permissions?.edit || false;
@@ -1751,18 +1860,16 @@
             };
 
             try {
-                const userDoc = await getUserRef().get();
-                const sharedWith = userDoc.data().sharedWith || [];
-                const updatedSharedWith = sharedWith.map(u => {
-                    if (u.userId === userId) {
-                        return { ...u, permissions };
-                    }
-                    return u;
+                // Firmadaki yetkileri güncelle
+                await getCompanySharedUsersRef().doc(userId).update({
+                    permissions: permissions
                 });
 
-                await getUserRef().update({
-                    sharedWith: updatedSharedWith
-                });
+                // Davet edilen kullanıcının sharedCompanies'deki yetkilerini de güncelle
+                await window.db.collection('users').doc(userId)
+                    .collection('sharedCompanies').doc(selectedCompanyId).update({
+                        permissions: permissions
+                    });
 
                 showNotification('✅ Yetkiler güncellendi');
                 closePermissionsModal();
@@ -1791,13 +1898,396 @@
             }
         }
 
+        // First Time Setup & Data Migration - GLOBAL
+
+        async function checkFirstTimeSetup() {
+            try {
+                const companiesSnapshot = await getCompaniesRef().get();
+                
+                // Eğer hiç firma yoksa
+                if (companiesSnapshot.empty) {
+                    // Eski verileri kontrol et
+                    const oldCustomersRef = getUserRef().collection('customers');
+                    const oldCustomersSnapshot = await oldCustomersRef.get();
+                    
+                    if (!oldCustomersSnapshot.empty) {
+                        // Eski veriler var, taşı
+                        await migrateOldDataToCompany();
+                    } else {
+                        // İlk kullanıcı, firma oluşturmasını iste
+                        await promptCreateFirstCompany();
+                    }
+                } else {
+                    // Firmalar var, son seçili firmayı yükle
+                    const lastSelectedId = localStorage.getItem('selectedCompanyId_' + window.auth.currentUser.uid);
+                    
+                    if (lastSelectedId) {
+                        const companyExists = companiesSnapshot.docs.find(doc => doc.id === lastSelectedId);
+                        if (companyExists) {
+                            selectedCompanyId = lastSelectedId;
+                        } else {
+                            selectedCompanyId = companiesSnapshot.docs[0].id;
+                        }
+                    } else {
+                        selectedCompanyId = companiesSnapshot.docs[0].id;
+                    }
+                    
+                    await loadUserCompanies();
+                }
+            } catch (error) {
+                console.error('First time setup error:', error);
+            }
+        }
+
+        async function promptCreateFirstCompany() {
+            const companyName = prompt('🏢 Hoş geldiniz!\n\nİlk firmanızın adını girin:', 'Firmam');
+            
+            if (!companyName || !companyName.trim()) {
+                alert('Firma adı girmelisiniz. Lütfen tekrar deneyin.');
+                await promptCreateFirstCompany();
+                return;
+            }
+
+            try {
+                const companyData = {
+                    name: companyName.trim(),
+                    phone: '',
+                    address: '',
+                    contactInfo: '',
+                    role: 'owner',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: {
+                        userId: window.auth.currentUser.uid,
+                        email: window.auth.currentUser.email
+                    }
+                };
+
+                const docRef = await getCompaniesRef().add(companyData);
+                selectedCompanyId = docRef.id;
+                localStorage.setItem('selectedCompanyId_' + window.auth.currentUser.uid, docRef.id);
+                
+                showNotification(`✅ ${companyName} firması oluşturuldu!`);
+                await loadUserCompanies();
+            } catch (error) {
+                console.error('Create first company error:', error);
+                alert('Firma oluşturulamadı. Lütfen tekrar deneyin.');
+            }
+        }
+
+        async function migrateOldDataToCompany() {
+            try {
+                showNotification('📦 Verileriniz yeni sisteme taşınıyor...');
+
+                // Default firma oluştur
+                const companyData = {
+                    name: 'Firmam',
+                    phone: '',
+                    address: '',
+                    contactInfo: '',
+                    role: 'owner',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: {
+                        userId: window.auth.currentUser.uid,
+                        email: window.auth.currentUser.email
+                    }
+                };
+
+                const companyDocRef = await getCompaniesRef().add(companyData);
+                selectedCompanyId = companyDocRef.id;
+
+                // Eski müşterileri taşı
+                const oldCustomersRef = getUserRef().collection('customers');
+                const oldCustomersSnapshot = await oldCustomersRef.get();
+                
+                const batch = window.db.batch();
+                const newCustomersRef = companyDocRef.collection('customers');
+                
+                oldCustomersSnapshot.forEach(doc => {
+                    const newDocRef = newCustomersRef.doc(doc.id);
+                    batch.set(newDocRef, doc.data());
+                });
+
+                await batch.commit();
+
+                // Eski settings taşı
+                const oldSettingsRef = getUserRef().collection('settings').doc('config');
+                const oldSettingsDoc = await oldSettingsRef.get();
+                if (oldSettingsDoc.exists) {
+                    await companyDocRef.collection('settings').doc('config').set(oldSettingsDoc.data());
+                }
+
+                // Eski templates taşı
+                const oldTemplatesRef = getUserRef().collection('templates').doc('messages');
+                const oldTemplatesDoc = await oldTemplatesRef.get();
+                if (oldTemplatesDoc.exists) {
+                    await companyDocRef.collection('templates').doc('messages').set(oldTemplatesDoc.data());
+                }
+
+                showNotification('✅ Veriler başarıyla taşındı!');
+                await loadUserCompanies();
+                
+                // Eski verileri sil (opsiyonel - şimdilik bırakalım)
+                // await deleteOldData();
+                
+            } catch (error) {
+                console.error('Migration error:', error);
+                alert('Veri taşıma hatası oluştu. Lütfen destek alın.');
+            }
+        }
+
+        // Company Management Functions - GLOBAL
+
+        function toggleCompanyDropdown() {
+            const dropdown = document.getElementById('companyDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function loadUserCompanies() {
+            try {
+                const snapshot = await getCompaniesRef().get();
+                allCompaniesList = [];
+                
+                snapshot.forEach(doc => {
+                    allCompaniesList.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                renderCompanyDropdown();
+
+                // Eğer seçili firma yoksa ve firma varsa ilkini seç
+                if (!selectedCompanyId && allCompaniesList.length > 0) {
+                    await selectCompany(allCompaniesList[0].id);
+                }
+            } catch (error) {
+                console.error('Load companies error:', error);
+            }
+        }
+
+        function renderCompanyDropdown() {
+            const container = document.getElementById('companyList');
+            
+            if (allCompaniesList.length === 0) {
+                container.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">Henüz firma eklenmemiş</div>';
+                return;
+            }
+
+            container.innerHTML = allCompaniesList.map(company => {
+                const isSelected = company.id === selectedCompanyId;
+                return `
+                    <div onclick="selectCompany('${company.id}')" style="padding: 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; background: ${isSelected ? '#e8f5e9' : 'white'}; transition: background 0.2s;" onmouseover="if(!${isSelected}) this.style.background='#f8f9fa'" onmouseout="if(!${isSelected}) this.style.background='white'">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            ${isSelected ? '<span style="color: #28a745; font-weight: 700;">✓</span>' : '<span style="width: 20px;"></span>'}
+                            <div style="flex: 1;">
+                                <strong style="color: #333;">${company.name}</strong>
+                                ${company.phone ? `<div style="font-size: 12px; color: #666;">📱 ${company.phone}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectCompany(companyId) {
+            if (selectedCompanyId === companyId) {
+                toggleCompanyDropdown();
+                return;
+            }
+
+            selectedCompanyId = companyId;
+            localStorage.setItem('selectedCompanyId_' + window.auth.currentUser.uid, companyId);
+
+            const company = allCompaniesList.find(c => c.id === companyId);
+            if (company) {
+                document.getElementById('selectedCompanyName').textContent = company.name;
+            }
+
+            toggleCompanyDropdown();
+            
+            // Tüm verileri yeniden yükle
+            await reloadAllData();
+            
+            showNotification(`🏢 ${company.name} seçildi`);
+        }
+
+        async function reloadAllData() {
+            try {
+                showNotification('🔄 Veriler yükleniyor...');
+                
+                // Listeners'ı temizle
+                if (customersListener) customersListener();
+                if (settingsListener) settingsListener();
+                if (templatesListener) templatesListener();
+                
+                // Verileri yeniden yükle
+                loadCustomers();
+                loadSettings();
+                loadTemplates();
+                loadSharedUsers();
+                updateDashboard();
+                await loadAllCustomersForSearch();
+            } catch (error) {
+                console.error('Reload data error:', error);
+            }
+        }
+
+        function openCreateCompanyModal() {
+            toggleCompanyDropdown();
+            document.getElementById('createCompanyModal').classList.add('show');
+        }
+
+        function closeCreateCompanyModal() {
+            document.getElementById('createCompanyModal').classList.remove('show');
+            document.getElementById('createCompanyName').value = '';
+            document.getElementById('createCompanyPhone').value = '';
+            document.getElementById('createCompanyAddress').value = '';
+            document.getElementById('createCompanyContact').value = '';
+        }
+
+        async function createNewCompany() {
+            const name = document.getElementById('createCompanyName').value.trim();
+            
+            if (!name) {
+                alert('Lütfen firma adı girin');
+                return;
+            }
+
+            try {
+                const companyData = {
+                    name: name,
+                    phone: document.getElementById('createCompanyPhone').value.trim(),
+                    address: document.getElementById('createCompanyAddress').value.trim(),
+                    contactInfo: document.getElementById('createCompanyContact').value.trim(),
+                    role: 'owner',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: {
+                        userId: window.auth.currentUser.uid,
+                        email: window.auth.currentUser.email
+                    }
+                };
+
+                const docRef = await getCompaniesRef().add(companyData);
+                
+                showNotification('✅ Firma oluşturuldu');
+                closeCreateCompanyModal();
+                
+                await loadUserCompanies();
+                await selectCompany(docRef.id);
+            } catch (error) {
+                console.error('Create company error:', error);
+                alert('Firma oluşturulurken hata oluştu');
+            }
+        }
+
+        function openCompanySettingsModal() {
+            toggleCompanyDropdown();
+            
+            if (!selectedCompanyId) {
+                alert('Lütfen önce bir firma seçin');
+                return;
+            }
+
+            const company = allCompaniesList.find(c => c.id === selectedCompanyId);
+            if (company) {
+                document.getElementById('editCompanyName').value = company.name || '';
+                document.getElementById('editCompanyPhone').value = company.phone || '';
+                document.getElementById('editCompanyAddress').value = company.address || '';
+                document.getElementById('editCompanyContact').value = company.contactInfo || '';
+            }
+
+            document.getElementById('companySettingsModal').classList.add('show');
+        }
+
+        function closeCompanySettingsModal() {
+            document.getElementById('companySettingsModal').classList.remove('show');
+        }
+
+        async function saveCompanySettings() {
+            const name = document.getElementById('editCompanyName').value.trim();
+            
+            if (!name) {
+                alert('Lütfen firma adı girin');
+                return;
+            }
+
+            try {
+                await getSelectedCompanyRef().update({
+                    name: name,
+                    phone: document.getElementById('editCompanyPhone').value.trim(),
+                    address: document.getElementById('editCompanyAddress').value.trim(),
+                    contactInfo: document.getElementById('editCompanyContact').value.trim(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showNotification('✅ Firma bilgileri güncellendi');
+                closeCompanySettingsModal();
+                await loadUserCompanies();
+            } catch (error) {
+                console.error('Update company error:', error);
+                alert('Güncelleme başarısız');
+            }
+        }
+
+        async function deleteCurrentCompany() {
+            if (!confirm('FİRMAYI SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nTüm müşteriler, ödemeler ve ayarlar silinecek!\n\nBu işlem geri alınamaz!')) {
+                return;
+            }
+
+            if (!confirm('SON UYARI!\n\nFirma ve tüm verileri kalıcı olarak silinecek.\n\nDevam etmek istiyor musunuz?')) {
+                return;
+            }
+
+            try {
+                // Alt koleksiyonları sil
+                const batch = window.db.batch();
+                
+                const customersSnapshot = await getCustomersRef().get();
+                customersSnapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+
+                // Settings ve templates sil
+                await getSettingsRef().delete().catch(() => {});
+                await getTemplatesRef().delete().catch(() => {});
+
+                // Firmayı sil
+                await getSelectedCompanyRef().delete();
+
+                showNotification('🗑️ Firma silindi');
+                closeCompanySettingsModal();
+                
+                selectedCompanyId = null;
+                await loadUserCompanies();
+                
+            } catch (error) {
+                console.error('Delete company error:', error);
+                alert('Silme işlemi başarısız');
+            }
+        }
+
         // Customer Search for Payment - GLOBAL
         let selectedCustomerForPayment = null;
         let allCustomersForSearch = [];
 
         async function loadAllCustomersForSearch() {
             try {
-                const snapshot = await getCustomersRef().get();
+                if (!selectedCompanyId) {
+                    console.log('No company selected, skipping loadAllCustomersForSearch');
+                    allCustomersForSearch = [];
+                    return;
+                }
+                
+                const customersRef = getCustomersRef();
+                if (!customersRef) {
+                    console.log('customersRef is null in loadAllCustomersForSearch');
+                    allCustomersForSearch = [];
+                    return;
+                }
+                
+                const snapshot = await customersRef.get();
                 const customersMap = {};
                 
                 snapshot.forEach(doc => {
@@ -1813,7 +2303,8 @@
                 
                 allCustomersForSearch = Object.values(customersMap);
             } catch (error) {
-                console.error('Load customers error:', error);
+                console.error('Load customers for search error:', error);
+                allCustomersForSearch = [];
             }
         }
 
@@ -2027,7 +2518,18 @@
         function loadCustomers() {
             if (customersListener) customersListener();
             
-            customersListener = getCustomersRef().onSnapshot(snapshot => {
+            if (!selectedCompanyId) {
+                console.log('No company selected, skipping loadCustomers');
+                return;
+            }
+            
+            const customersRef = getCustomersRef();
+            if (!customersRef) {
+                console.log('customersRef is null');
+                return;
+            }
+            
+            customersListener = customersRef.onSnapshot(snapshot => {
                 const customers = [];
                 snapshot.forEach(doc => {
                     customers.push({ id: doc.id, ...doc.data() });
@@ -2273,7 +2775,18 @@
         function loadTemplates() {
             if (templatesListener) templatesListener();
             
-            templatesListener = getTemplatesRef().onSnapshot(doc => {
+            if (!selectedCompanyId) {
+                console.log('No company selected, skipping loadTemplates');
+                return;
+            }
+            
+            const templatesRef = getTemplatesRef();
+            if (!templatesRef) {
+                console.log('templatesRef is null');
+                return;
+            }
+            
+            templatesListener = templatesRef.onSnapshot(doc => {
                 if (doc.exists) {
                     const templates = doc.data();
                     document.getElementById('template3Day').value = templates.template3Day || 'Merhaba {isim},\n\n{tarih} tarihinde {tutar} ₺ tutarındaki ödemenize {gun} gün kaldı.\n\nTeşekkür ederiz.';
@@ -2343,7 +2856,18 @@
         function loadSettings() {
             if (settingsListener) settingsListener();
             
-            settingsListener = getSettingsRef().onSnapshot(doc => {
+            if (!selectedCompanyId) {
+                console.log('No company selected, skipping loadSettings');
+                return;
+            }
+            
+            const settingsRef = getSettingsRef();
+            if (!settingsRef) {
+                console.log('settingsRef is null');
+                return;
+            }
+            
+            settingsListener = settingsRef.onSnapshot(doc => {
                 if (doc.exists) {
                     const settings = doc.data();
                     document.getElementById('companyName').value = settings.companyName || '';
@@ -2520,7 +3044,18 @@
         // Dashboard
         async function updateDashboard() {
             try {
-                const snapshot = await getCustomersRef().get();
+                if (!selectedCompanyId) {
+                    console.log('No company selected, skipping updateDashboard');
+                    return;
+                }
+                
+                const customersRef = getCustomersRef();
+                if (!customersRef) {
+                    console.log('customersRef is null in updateDashboard');
+                    return;
+                }
+                
+                const snapshot = await customersRef.get();
                 const customers = [];
                 snapshot.forEach(doc => {
                     customers.push({ id: doc.id, ...doc.data() });
@@ -2546,7 +3081,7 @@
                 renderTodayReminders(customers);
                 renderTopCustomers(customers);
             } catch (error) {
-                console.error(error);
+                console.error('updateDashboard error:', error);
             }
         }
 
