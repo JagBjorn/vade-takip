@@ -402,6 +402,15 @@
             color: white;
             border-color: #667eea;
         }
+
+        .payment-type-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .payment-type-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -432,16 +441,28 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="totalAmount">0 ₺</div>
-                    <div class="stat-label">Toplam Tutar</div>
+                    <div class="stat-label">Bekleyen Tutar</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="thisMonth">0</div>
-                    <div class="stat-label">Bu Ay Vadesi Gelenler</div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <div class="stat-value" id="paidCount">0</div>
+                    <div class="stat-label">Ödeme Yapan</div>
                 </div>
             </div>
 
             <h3 style="margin-bottom: 15px;">🔔 Bugün Gönderilecek Hatırlatmalar</h3>
             <div id="todayReminders"></div>
+
+            <div style="margin-top: 30px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 14px; opacity: 0.9;">📬 Bugünkü Bildirimler</div>
+                        <div style="font-size: 24px; font-weight: 700; margin-top: 5px;" id="notificationCount">0 bildirim gönderildi</div>
+                    </div>
+                    <button onclick="checkAndSendNotifications()" style="background: white; color: #667eea; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        🔄 Şimdi Kontrol Et
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div id="add" class="content" style="display: none;">
@@ -458,8 +479,42 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Ödeme Tipi (Hızlı Seçim)</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <button type="button" class="payment-type-btn" onclick="setPaymentType(10, 'Kredi Kartı Taksit')" style="padding: 12px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                            <div style="font-weight: 600; color: #667eea;">💳 Taksitli</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">10 gün</div>
+                        </button>
+                        <button type="button" class="payment-type-btn" onclick="setPaymentType(20, 'Kredi Kartı Tek Çekim')" style="padding: 12px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                            <div style="font-weight: 600; color: #667eea;">💳 Tek Çekim</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">20 gün</div>
+                        </button>
+                        <button type="button" class="payment-type-btn" onclick="setPaymentType(30, 'Havale/EFT')" style="padding: 12px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                            <div style="font-weight: 600; color: #667eea;">🏦 Havale</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">30 gün</div>
+                        </button>
+                        <button type="button" class="payment-type-btn" onclick="setPaymentType(45, 'Çek')" style="padding: 12px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                            <div style="font-weight: 600; color: #667eea;">📄 Çek</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">45 gün</div>
+                        </button>
+                        <button type="button" class="payment-type-btn" onclick="setPaymentType(60, 'Senet')" style="padding: 12px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                            <div style="font-weight: 600; color: #667eea;">📋 Senet</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">60 gün</div>
+                        </button>
+                        <button type="button" class="payment-type-btn" onclick="clearPaymentType()" style="padding: 12px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                            <div style="font-weight: 600; color: #666;">✏️ Manuel</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">Elle seç</div>
+                        </button>
+                    </div>
+                    <input type="text" id="paymentTypeDisplay" readonly placeholder="Ödeme tipi seçilmedi" style="background: #f8f9fa; cursor: default; margin-bottom: 10px;">
+                </div>
+
+                <div class="form-group">
                     <label>Vade Tarihi *</label>
                     <input type="date" id="dueDate" required>
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;" id="dueDateHelper">
+                        Yukarıdan ödeme tipi seçin veya manuel tarih girin
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -483,9 +538,9 @@
 
             <div class="filters">
                 <button class="filter-btn active" onclick="filterByStatus('all')">Tümü</button>
+                <button class="filter-btn" onclick="filterByStatus('pending')">Bekleyenler</button>
                 <button class="filter-btn" onclick="filterByStatus('urgent')">Acil (3 gün)</button>
-                <button class="filter-btn" onclick="filterByStatus('upcoming')">Yaklaşan</button>
-                <button class="filter-btn" onclick="filterByStatus('normal')">Normal</button>
+                <button class="filter-btn" onclick="filterByStatus('paid')">Ödenenler</button>
             </div>
 
             <button class="btn btn-success" onclick="exportToExcel()" style="margin-bottom: 20px;">📥 Excel'e Aktar</button>
@@ -554,7 +609,48 @@ Vade Tarihi: {tarih}
                 <input type="text" id="contactInfo" placeholder="Telefon veya e-posta">
             </div>
 
+            <hr style="margin: 30px 0; border: none; border-top: 2px solid #e0e0e0;">
+            
+            <h3 style="margin-bottom: 20px;">🔔 Bildirim Ayarları</h3>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="notificationsEnabled" style="width: auto; margin-right: 10px;" checked>
+                    <span>Bildirimleri Aç</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label>Sabah Bildirimi Saati</label>
+                <input type="time" id="morningTime" value="09:00">
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                    Her sabah bu saatte bugünün vadesi gelenleri bildirir
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label>Gün İçi Hatırlatma Aralığı (Saat)</label>
+                <select id="reminderInterval">
+                    <option value="1">Her 1 saatte</option>
+                    <option value="2" selected>Her 2 saatte</option>
+                    <option value="3">Her 3 saatte</option>
+                    <option value="4">Her 4 saatte</option>
+                </select>
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                    Ödenmemiş vadeler varsa gün içinde hatırlatma gönderir (09:00-20:00 arası)
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="reminderEnabled" style="width: auto; margin-right: 10px;" checked>
+                    <span>Gün İçi Hatırlatmaları Aç</span>
+                </label>
+            </div>
+
             <button class="btn" onclick="saveSettings()">Ayarları Kaydet</button>
+
+            <button class="btn" style="margin-top: 15px; background: #17a2b8;" onclick="testNotification()">🔔 Test Bildirimi Gönder</button>
 
             <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
                 <h3 style="margin-bottom: 15px; color: #dc3545;">⚠️ Tehlikeli Bölge</h3>
@@ -610,14 +706,182 @@ Vade Tarihi: {tarih}
                     localStorage.setItem('installPromptShown', 'true');
                 }, 2000);
             }
+
+            // Bildirim izni iste
+            requestNotificationPermission();
+            
+            // Bildirim zamanlayıcısını başlat
+            startNotificationScheduler();
         });
+
+        // Bildirim izni iste
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                console.log('Bu tarayıcı bildirimleri desteklemiyor');
+                return false;
+            }
+
+            if (Notification.permission === 'granted') {
+                console.log('✅ Bildirim izni var');
+                return true;
+            }
+
+            if (Notification.permission !== 'denied') {
+                const notificationShown = localStorage.getItem('notificationPromptShown');
+                
+                if (!notificationShown) {
+                    setTimeout(async () => {
+                        const wantNotifications = confirm('🔔 Ödeme hatırlatmaları için bildirim almak ister misiniz?\n\n• Sabah günlük özet\n• Gün içinde düzenli hatırlatmalar\n• Ödemeleri kaçırmayın!');
+                        
+                        if (wantNotifications) {
+                            const permission = await Notification.requestPermission();
+                            if (permission === 'granted') {
+                                showNotification('✅ Bildirimler aktif!');
+                                new Notification('🎉 Vade Takip Sistemi', {
+                                    body: 'Bildirimler başarıyla açıldı! Artık ödemelerinizi kaçırmayacaksınız.',
+                                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23667eea" rx="20"/><text x="50" y="65" font-size="50" text-anchor="middle">💼</text></svg>',
+                                    badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23667eea" rx="20"/><text x="50" y="65" font-size="50" text-anchor="middle">💼</text></svg>'
+                                });
+                            }
+                        }
+                        localStorage.setItem('notificationPromptShown', 'true');
+                    }, 5000); // 5 saniye sonra sor
+                }
+            }
+            
+            return Notification.permission === 'granted';
+        }
+
+        // Bildirim gönder
+        function sendPushNotification(title, body, tag) {
+            if (Notification.permission !== 'granted') return;
+            
+            const notification = new Notification(title, {
+                body: body,
+                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23667eea" rx="20"/><text x="50" y="65" font-size="50" text-anchor="middle">💼</text></svg>',
+                badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23667eea" rx="20"/><text x="50" y="65" font-size="50" text-anchor="middle">💼</text></svg>',
+                tag: tag || 'vade-reminder',
+                requireInteraction: true,
+                vibrate: [200, 100, 200]
+            });
+
+            notification.onclick = function() {
+                window.focus();
+                notification.close();
+                showTab('dashboard');
+            };
+        }
+
+        // Bildirim zamanlayıcısı
+        function startNotificationScheduler() {
+            // Her 30 dakikada bir kontrol et
+            setInterval(() => {
+                checkAndSendNotifications();
+            }, 30 * 60 * 1000); // 30 dakika
+
+            // Sayfa açıldığında hemen kontrol et
+            setTimeout(() => {
+                checkAndSendNotifications();
+            }, 10000); // 10 saniye sonra
+        }
+
+        // Bildirimleri kontrol et ve gönder
+        function checkAndSendNotifications() {
+            const settings = getNotificationSettings();
+            if (!settings.enabled) return;
+
+            const customers = getCustomers();
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const todayString = now.toISOString().split('T')[0];
+            
+            // Bugünün vadesi gelenler (ödenmemiş)
+            const todaysDue = customers.filter(c => {
+                const daysLeft = getDaysUntilDue(c.dueDate);
+                return daysLeft === 0 && c.status !== 'paid';
+            });
+
+            // Sabah bildirimi (sadece bir kez)
+            const morningHour = parseInt(settings.morningTime.split(':')[0]);
+            const morningMinute = parseInt(settings.morningTime.split(':')[1]);
+            const lastNotification = localStorage.getItem(STORAGE_KEYS.LAST_NOTIFICATION);
+
+            if (currentHour === morningHour && currentMinute >= morningMinute && currentMinute < morningMinute + 30) {
+                if (lastNotification !== todayString && todaysDue.length > 0) {
+                    sendPushNotification(
+                        '☀️ Günaydın! Bugün vadesi gelenler',
+                        `${todaysDue.length} müşterinin ödeme günü. Toplam ${todaysDue.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0).toLocaleString('tr-TR')} ₺`,
+                        'morning-reminder'
+                    );
+                    localStorage.setItem(STORAGE_KEYS.LAST_NOTIFICATION, todayString);
+                }
+            }
+
+            // Gün içi hatırlatmalar (2-3 saatte bir)
+            if (settings.reminderEnabled && todaysDue.length > 0) {
+                const intervalHours = settings.reminderInterval;
+                const lastReminderTime = localStorage.getItem('lastReminderTime');
+                const lastReminderDate = lastReminderTime ? new Date(lastReminderTime) : new Date(0);
+                const hoursSinceLastReminder = (now - lastReminderDate) / (1000 * 60 * 60);
+
+                // Sadece mesai saatleri içinde (09:00 - 20:00)
+                if (currentHour >= 9 && currentHour < 20 && hoursSinceLastReminder >= intervalHours) {
+                    sendPushNotification(
+                        '🔔 Hatırlatma: Ödeme Bekleyenler',
+                        `Henüz ${todaysDue.length} ödeme alınmadı. WhatsApp hatırlatması göndermek için tıklayın.`,
+                        'periodic-reminder'
+                    );
+                    localStorage.setItem('lastReminderTime', now.toISOString());
+                }
+            }
+
+            // 3 gün sonrası vadesi gelenler için özel bildirim
+            const threeDaysReminders = customers.filter(c => {
+                const daysLeft = getDaysUntilDue(c.dueDate);
+                return daysLeft === 3 && c.status !== 'paid';
+            });
+
+            if (threeDaysReminders.length > 0 && currentHour === 10 && currentMinute < 30) {
+                const reminderSent = localStorage.getItem(`reminder3day_${todayString}`);
+                if (!reminderSent) {
+                    sendPushNotification(
+                        '⚠️ 3 Gün Sonra Vade',
+                        `${threeDaysReminders.length} müşteriye 3 gün öncesi hatırlatması göndermeyi unutma!`,
+                        '3day-reminder'
+                    );
+                    localStorage.setItem(`reminder3day_${todayString}`, 'true');
+                }
+            }
+        }
+
+        // Bildirim ayarlarını getir
+        function getNotificationSettings() {
+            const data = localStorage.getItem(STORAGE_KEYS.NOTIFICATION_SETTINGS);
+            return data ? JSON.parse(data) : DEFAULT_NOTIFICATION_SETTINGS;
+        }
+
+        // Bildirim ayarlarını kaydet
+        function saveNotificationSettings(settings) {
+            localStorage.setItem(STORAGE_KEYS.NOTIFICATION_SETTINGS, JSON.stringify(settings));
+        }
 
         // LocalStorage anahtarları
         const STORAGE_KEYS = {
             CUSTOMERS: 'vade_customers',
             TEMPLATES: 'vade_templates',
             SETTINGS: 'vade_settings',
-            SENT_REMINDERS: 'vade_sent_reminders'
+            SENT_REMINDERS: 'vade_sent_reminders',
+            NOTIFICATION_SETTINGS: 'vade_notification_settings',
+            LAST_NOTIFICATION: 'vade_last_notification'
+        };
+
+        // Varsayılan bildirim ayarları
+        const DEFAULT_NOTIFICATION_SETTINGS = {
+            enabled: true,
+            morningTime: '09:00', // Sabah bildirimi saati
+            reminderInterval: 2, // Saat cinsinden (2, 3, 4 saat)
+            reminderEnabled: true
         };
 
         // Varsayılan şablonlar
@@ -661,6 +925,8 @@ Vade Tarihi: {tarih}
         });
 
         // Müşteri formu
+        let selectedPaymentType = null;
+
         document.getElementById('customerForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -671,6 +937,9 @@ Vade Tarihi: {tarih}
                 dueDate: document.getElementById('dueDate').value,
                 amount: document.getElementById('amount').value || 0,
                 note: document.getElementById('note').value,
+                paymentType: selectedPaymentType, // Ödeme tipi bilgisi
+                status: 'pending', // pending, paid, postponed
+                paidDate: null,
                 createdAt: new Date().toISOString()
             };
 
@@ -680,9 +949,66 @@ Vade Tarihi: {tarih}
 
             showNotification('✅ Müşteri başarıyla eklendi!');
             this.reset();
+            document.getElementById('paymentTypeDisplay').value = '';
+            selectedPaymentType = null;
+            clearPaymentTypeButtons();
             updateDashboard();
             showTab('list');
         });
+
+        function setPaymentType(days, typeName) {
+            selectedPaymentType = typeName;
+            
+            // Bugünden X gün sonrasını hesapla
+            const today = new Date();
+            const dueDate = new Date(today);
+            dueDate.setDate(today.getDate() + days);
+            
+            // Tarihi input'a yaz
+            const dateString = dueDate.toISOString().split('T')[0];
+            document.getElementById('dueDate').value = dateString;
+            document.getElementById('paymentTypeDisplay').value = `${typeName} (+${days} gün)`;
+            
+            // Vade tarihi helper'ı güncelle
+            document.getElementById('dueDateHelper').textContent = 
+                `${typeName} seçildi - Vade: ${dueDate.toLocaleDateString('tr-TR')}`;
+            document.getElementById('dueDateHelper').style.color = '#667eea';
+            document.getElementById('dueDateHelper').style.fontWeight = '600';
+            
+            // Tüm butonların stilini sıfırla
+            clearPaymentTypeButtons();
+            
+            // Seçili butonu vurgula
+            event.target.closest('button').style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            event.target.closest('button').style.color = 'white';
+            event.target.closest('button').style.borderColor = '#667eea';
+            event.target.closest('button').querySelectorAll('div').forEach(div => {
+                div.style.color = 'white';
+            });
+        }
+
+        function clearPaymentType() {
+            selectedPaymentType = null;
+            document.getElementById('dueDate').value = '';
+            document.getElementById('paymentTypeDisplay').value = '';
+            document.getElementById('dueDateHelper').textContent = 'Yukarıdan ödeme tipi seçin veya manuel tarih girin';
+            document.getElementById('dueDateHelper').style.color = '#666';
+            document.getElementById('dueDateHelper').style.fontWeight = 'normal';
+            clearPaymentTypeButtons();
+        }
+
+        function clearPaymentTypeButtons() {
+            document.querySelectorAll('.payment-type-btn').forEach(btn => {
+                btn.style.background = '#f8f9fa';
+                btn.style.color = '';
+                btn.style.borderColor = '#e0e0e0';
+                btn.querySelectorAll('div').forEach(div => {
+                    if (div.style.color === 'white') {
+                        div.style.color = div.classList.contains('font-weight-600') ? '#667eea' : '#666';
+                    }
+                });
+            });
+        }
 
         function getCustomers() {
             const data = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
@@ -701,6 +1027,136 @@ Vade Tarihi: {tarih}
                 loadCustomers();
                 updateDashboard();
                 showNotification('🗑️ Müşteri silindi');
+            }
+        }
+
+        function markAsPaid(id) {
+            if (confirm('Bu müşteri ödeme yaptı mı?')) {
+                let customers = getCustomers();
+                const customer = customers.find(c => c.id === id);
+                if (customer) {
+                    customer.status = 'paid';
+                    customer.paidDate = new Date().toISOString();
+                    saveCustomers(customers);
+                    loadCustomers();
+                    updateDashboard();
+                    showNotification('✅ Ödeme alındı olarak işaretlendi');
+                    
+                    // Kalan ödenmemiş vadeler varsa bildirimleri güncelle
+                    const todaysDue = customers.filter(c => {
+                        const daysLeft = getDaysUntilDue(c.dueDate);
+                        return daysLeft === 0 && c.status !== 'paid' && c.id !== id;
+                    });
+
+                    if (todaysDue.length === 0) {
+                        // Tüm ödemeler alındı bildirimi
+                        if (Notification.permission === 'granted') {
+                            sendPushNotification(
+                                '🎉 Tebrikler!',
+                                'Bugünün tüm ödemeleri alındı!',
+                                'all-paid'
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        function editCustomer(id) {
+            const customers = getCustomers();
+            const customer = customers.find(c => c.id === id);
+            
+            if (!customer) return;
+
+            // Modal içeriği oluştur
+            const modalHTML = `
+                <div id="editModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                    <div style="background: white; border-radius: 20px; padding: 25px; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto;">
+                        <h2 style="margin-bottom: 20px;">✏️ Müşteri Düzenle</h2>
+                        
+                        <div class="form-group">
+                            <label>Müşteri Adı</label>
+                            <input type="text" id="editName" value="${customer.name}" class="form-group">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Telefon</label>
+                            <input type="tel" id="editPhone" value="${customer.phone}" class="form-group">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Ödeme Tipi</label>
+                            <select id="editPaymentType" class="form-group">
+                                <option value="">Seçilmedi</option>
+                                <option value="Kredi Kartı Taksit" ${customer.paymentType === 'Kredi Kartı Taksit' ? 'selected' : ''}>💳 Kredi Kartı Taksit</option>
+                                <option value="Kredi Kartı Tek Çekim" ${customer.paymentType === 'Kredi Kartı Tek Çekim' ? 'selected' : ''}>💳 Kredi Kartı Tek Çekim</option>
+                                <option value="Havale/EFT" ${customer.paymentType === 'Havale/EFT' ? 'selected' : ''}>🏦 Havale/EFT</option>
+                                <option value="Çek" ${customer.paymentType === 'Çek' ? 'selected' : ''}>📄 Çek</option>
+                                <option value="Senet" ${customer.paymentType === 'Senet' ? 'selected' : ''}>📋 Senet</option>
+                                <option value="Nakit" ${customer.paymentType === 'Nakit' ? 'selected' : ''}>💵 Nakit</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Vade Tarihi</label>
+                            <input type="date" id="editDueDate" value="${customer.dueDate}" class="form-group">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Tutar (₺)</label>
+                            <input type="number" id="editAmount" value="${customer.amount}" class="form-group">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Not</label>
+                            <textarea id="editNote" class="form-group">${customer.note || ''}</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Durum</label>
+                            <select id="editStatus" class="form-group">
+                                <option value="pending" ${customer.status === 'pending' ? 'selected' : ''}>Bekliyor</option>
+                                <option value="postponed" ${customer.status === 'postponed' ? 'selected' : ''}>Ertelendi</option>
+                                <option value="paid" ${customer.status === 'paid' ? 'selected' : ''}>Ödendi</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button class="btn" onclick="saveEdit(${customer.id})" style="flex: 1;">💾 Kaydet</button>
+                            <button class="btn btn-secondary" onclick="closeEditModal()" style="flex: 1;">❌ İptal</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function saveEdit(id) {
+            let customers = getCustomers();
+            const customer = customers.find(c => c.id === id);
+            
+            if (customer) {
+                customer.name = document.getElementById('editName').value;
+                customer.phone = document.getElementById('editPhone').value;
+                customer.paymentType = document.getElementById('editPaymentType').value;
+                customer.dueDate = document.getElementById('editDueDate').value;
+                customer.amount = document.getElementById('editAmount').value;
+                customer.note = document.getElementById('editNote').value;
+                customer.status = document.getElementById('editStatus').value;
+                
+                saveCustomers(customers);
+                closeEditModal();
+                loadCustomers();
+                updateDashboard();
+                showNotification('✅ Müşteri güncellendi');
+            }
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            if (modal) {
+                modal.remove();
             }
         }
 
@@ -751,6 +1207,8 @@ Vade Tarihi: {tarih}
                             <div>
                                 <div class="customer-name">${customer.name}</div>
                                 <span class="badge ${status.badgeClass}">${status.badge}</span>
+                                ${customer.status === 'paid' ? '<span class="badge badge-success" style="margin-left: 5px;">✅ Ödendi</span>' : ''}
+                                ${customer.status === 'postponed' ? '<span class="badge" style="background: #ff9800; color: white; margin-left: 5px;">⏰ Ertelendi</span>' : ''}
                             </div>
                         </div>
                         <div class="customer-info">
@@ -760,6 +1218,11 @@ Vade Tarihi: {tarih}
                             <div class="info-item">
                                 <span class="info-label">📅 Vade:</span> ${formattedDate}
                             </div>
+                            ${customer.paymentType ? `
+                            <div class="info-item">
+                                <span class="info-label">💳 Ödeme Tipi:</span> ${customer.paymentType}
+                            </div>
+                            ` : ''}
                             <div class="info-item">
                                 <span class="info-label">💰 Tutar:</span> ${parseFloat(customer.amount).toLocaleString('tr-TR')} ₺
                             </div>
@@ -768,10 +1231,23 @@ Vade Tarihi: {tarih}
                                 <span class="info-label">📝 Not:</span> ${customer.note}
                             </div>
                             ` : ''}
+                            ${customer.paidDate ? `
+                            <div class="info-item">
+                                <span class="info-label">✅ Ödeme Tarihi:</span> ${new Date(customer.paidDate).toLocaleDateString('tr-TR')}
+                            </div>
+                            ` : ''}
                         </div>
                         <div class="customer-actions">
-                            <button class="btn btn-whatsapp" onclick="sendWhatsApp('${customer.id}')">
-                                📱 WhatsApp Gönder
+                            ${customer.status !== 'paid' ? `
+                                <button class="btn btn-whatsapp" onclick="sendWhatsApp('${customer.id}')">
+                                    📱 WhatsApp Gönder
+                                </button>
+                                <button class="btn btn-success" onclick="markAsPaid(${customer.id})">
+                                    ✅ Ödeme Alındı
+                                </button>
+                            ` : ''}
+                            <button class="btn" style="background: #ff9800; padding: 8px 16px; width: auto; font-size: 13px;" onclick="editCustomer(${customer.id})">
+                                ✏️ Düzenle
                             </button>
                             <button class="btn btn-danger" onclick="deleteCustomer(${customer.id})">
                                 🗑️ Sil
@@ -819,17 +1295,34 @@ Vade Tarihi: {tarih}
 
             document.getElementById('totalCustomers').textContent = customers.length;
             
-            const urgent = customers.filter(c => getDaysUntilDue(c.dueDate) <= 3 && getDaysUntilDue(c.dueDate) >= 0);
+            const urgent = customers.filter(c => getDaysUntilDue(c.dueDate) <= 3 && getDaysUntilDue(c.dueDate) >= 0 && c.status !== 'paid');
             document.getElementById('urgentPayments').textContent = urgent.length;
 
-            const totalAmount = customers.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+            const pendingCustomers = customers.filter(c => c.status !== 'paid');
+            const totalAmount = pendingCustomers.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
             document.getElementById('totalAmount').textContent = totalAmount.toLocaleString('tr-TR') + ' ₺';
 
-            const thisMonth = customers.filter(c => {
-                const due = new Date(c.dueDate);
-                return due.getMonth() === today.getMonth() && due.getFullYear() === today.getFullYear();
-            });
-            document.getElementById('thisMonth').textContent = thisMonth.length;
+            const paidCustomers = customers.filter(c => c.status === 'paid');
+            document.getElementById('paidCount').textContent = paidCustomers.length;
+
+            // Bugünkü bildirim sayısını göster
+            const todayString = new Date().toISOString().split('T')[0];
+            const lastNotification = localStorage.getItem(STORAGE_KEYS.LAST_NOTIFICATION);
+            const lastReminderTime = localStorage.getItem('lastReminderTime');
+            let notificationCount = 0;
+            
+            if (lastNotification === todayString) notificationCount++;
+            if (lastReminderTime && lastReminderTime.startsWith(todayString)) {
+                const reminderDate = new Date(lastReminderTime);
+                const now = new Date();
+                const hoursDiff = (now - reminderDate) / (1000 * 60 * 60);
+                const settings = getNotificationSettings();
+                notificationCount += Math.floor(hoursDiff / settings.reminderInterval);
+            }
+            
+            document.getElementById('notificationCount').textContent = 
+                notificationCount === 0 ? 'Henüz bildirim gönderilmedi' : 
+                `${notificationCount} bildirim gönderildi`;
 
             // Bugün gönderilecek hatırlatmaları göster
             const reminders = getTodayReminders();
@@ -869,10 +1362,12 @@ Vade Tarihi: {tarih}
         function getTodayReminders() {
             const customers = getCustomers();
             const sentReminders = getSentReminders();
-            const today = new Date().toISOString().split('T')[0];
             const reminders = [];
 
             customers.forEach(customer => {
+                // Ödeme yapılmış müşterilere hatırlatma gönderme
+                if (customer.status === 'paid') return;
+                
                 const daysLeft = getDaysUntilDue(customer.dueDate);
                 
                 // 3 gün öncesi hatırlatma
@@ -982,6 +1477,13 @@ Vade Tarihi: {tarih}
                 document.getElementById('companyName').value = settings.companyName || '';
                 document.getElementById('contactInfo').value = settings.contactInfo || '';
             }
+
+            // Bildirim ayarlarını yükle
+            const notifSettings = getNotificationSettings();
+            document.getElementById('notificationsEnabled').checked = notifSettings.enabled;
+            document.getElementById('morningTime').value = notifSettings.morningTime;
+            document.getElementById('reminderInterval').value = notifSettings.reminderInterval;
+            document.getElementById('reminderEnabled').checked = notifSettings.reminderEnabled;
         }
 
         function saveSettings() {
@@ -990,7 +1492,47 @@ Vade Tarihi: {tarih}
                 contactInfo: document.getElementById('contactInfo').value
             };
             localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+
+            // Bildirim ayarlarını kaydet
+            const notifSettings = {
+                enabled: document.getElementById('notificationsEnabled').checked,
+                morningTime: document.getElementById('morningTime').value,
+                reminderInterval: parseInt(document.getElementById('reminderInterval').value),
+                reminderEnabled: document.getElementById('reminderEnabled').checked
+            };
+            saveNotificationSettings(notifSettings);
+
             showNotification('⚙️ Ayarlar kaydedildi');
+        }
+
+        function testNotification() {
+            if (Notification.permission !== 'granted') {
+                alert('⚠️ Bildirim izni verilmemiş!\n\nLütfen tarayıcı ayarlarından bildirimlere izin verin.');
+                requestNotificationPermission();
+                return;
+            }
+
+            const customers = getCustomers();
+            const todaysDue = customers.filter(c => {
+                const daysLeft = getDaysUntilDue(c.dueDate);
+                return daysLeft === 0 && c.status !== 'paid';
+            });
+
+            if (todaysDue.length > 0) {
+                sendPushNotification(
+                    '🔔 Test Bildirimi',
+                    `Bugün ${todaysDue.length} müşterinin ödeme günü. Toplam ${todaysDue.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0).toLocaleString('tr-TR')} ₺`,
+                    'test-notification'
+                );
+            } else {
+                sendPushNotification(
+                    '✅ Test Bildirimi',
+                    'Bildirimler çalışıyor! Bugün vadesi gelen ödeme yok.',
+                    'test-notification'
+                );
+            }
+
+            showNotification('✅ Test bildirimi gönderildi');
         }
 
         function clearAllData() {
@@ -1016,9 +1558,12 @@ Vade Tarihi: {tarih}
                 'Müşteri Adı': c.name,
                 'Telefon': c.phone,
                 'Vade Tarihi': new Date(c.dueDate).toLocaleDateString('tr-TR'),
+                'Ödeme Tipi': c.paymentType || '-',
                 'Tutar (₺)': parseFloat(c.amount),
-                'Kalan Gün': getDaysUntilDue(c.dueDate),
+                'Durum': c.status === 'paid' ? 'Ödendi' : c.status === 'postponed' ? 'Ertelendi' : 'Bekliyor',
+                'Kalan Gün': c.status === 'paid' ? '-' : getDaysUntilDue(c.dueDate),
                 'Not': c.note || '',
+                'Ödeme Tarihi': c.paidDate ? new Date(c.paidDate).toLocaleDateString('tr-TR') : '-',
                 'Eklenme Tarihi': new Date(c.createdAt).toLocaleDateString('tr-TR')
             }));
 
@@ -1059,12 +1604,18 @@ Vade Tarihi: {tarih}
                 let matchesFilter = true;
                 
                 if (currentFilter !== 'all') {
-                    const hasUrgentClass = card.classList.contains('urgent');
-                    const hasWarningClass = card.classList.contains('warning');
+                    const customerId = card.getAttribute('data-customer-id');
+                    const customers = getCustomers();
+                    const customer = customers.find(c => c.id == customerId);
                     
-                    if (currentFilter === 'urgent' && !hasUrgentClass) matchesFilter = false;
-                    if (currentFilter === 'upcoming' && !hasWarningClass) matchesFilter = false;
-                    if (currentFilter === 'normal' && (hasUrgentClass || hasWarningClass)) matchesFilter = false;
+                    if (customer) {
+                        const hasUrgentClass = card.classList.contains('urgent');
+                        const daysLeft = getDaysUntilDue(customer.dueDate);
+                        
+                        if (currentFilter === 'pending' && customer.status !== 'pending') matchesFilter = false;
+                        if (currentFilter === 'urgent' && (daysLeft > 3 || daysLeft < 0 || customer.status === 'paid')) matchesFilter = false;
+                        if (currentFilter === 'paid' && customer.status !== 'paid') matchesFilter = false;
+                    }
                 }
                 
                 card.style.display = (matchesSearch && matchesFilter) ? 'block' : 'none';
