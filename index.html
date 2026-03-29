@@ -2008,10 +2008,64 @@
                 console.log('Attempting registration...');
                 const result = await window.auth.createUserWithEmailAndPassword(email, password);
                 console.log('Registration successful:', result);
+                
+                // Pending invites kontrol et
+                await checkPendingInvites(email, result.user.uid);
+                
                 showNotification('✅ Kayıt başarılı!');
             } catch (error) {
                 console.error('Registration error:', error);
                 alert('Kayıt hatası: ' + getErrorMessage(error.code));
+            }
+        }
+
+        // Pending invites kontrol et
+        async function checkPendingInvites(email, userId) {
+            try {
+                const pendingInvites = await window.db.collection('pendingInvites')
+                    .where('email', '==', email)
+                    .where('status', '==', 'pending')
+                    .get();
+
+                if (pendingInvites.empty) {
+                    console.log('No pending invites for', email);
+                    return;
+                }
+
+                console.log('Found', pendingInvites.size, 'pending invites for', email);
+
+                // Her davet için sharedCompanies ekle
+                const batch = window.db.batch();
+
+                for (const inviteDoc of pendingInvites.docs) {
+                    const invite = inviteDoc.data();
+                    
+                    // Kullanıcının sharedCompanies'ine ekle
+                    const sharedCompanyRef = window.db.collection('users').doc(userId)
+                        .collection('sharedCompanies').doc(invite.companyId);
+                    
+                    batch.set(sharedCompanyRef, {
+                        ownerId: invite.ownerId,
+                        ownerEmail: invite.ownerEmail,
+                        companyId: invite.companyId,
+                        companyName: invite.companyName,
+                        permissions: invite.permissions,
+                        invitedAt: invite.createdAt,
+                        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // Pending invite'ı completed olarak işaretle
+                    batch.update(inviteDoc.ref, {
+                        status: 'completed',
+                        userId: userId,
+                        completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+
+                await batch.commit();
+                console.log('Pending invites processed successfully');
+            } catch (error) {
+                console.error('Error checking pending invites:', error);
             }
         }
 
@@ -2232,6 +2286,19 @@
                     
                     // Listeyi yenile
                     loadSharedUsers();
+                } else {
+                    // KULLANICI KAYITLI DEĞİL - Pending invites'a ekle
+                    await window.db.collection('pendingInvites').add({
+                        email: inviteEmail,
+                        companyId: selectedCompanyId,
+                        companyName: company.name,
+                        ownerId: window.auth.currentUser.uid,
+                        ownerEmail: window.auth.currentUser.email,
+                        inviterName: inviterName,
+                        permissions: permissions,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        status: 'pending'
+                    });
                 }
 
                 // HER HALÜKARDA EMAIL GÖNDER (kayıtlı olsun olmasın)
@@ -2659,27 +2726,60 @@
             // Seçili firma adını güncelle
             const selectedCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
             if (selectedCompany) {
-                document.getElementById('selectedCompanyName').textContent = selectedCompany.name;
+                const ownerLabel = selectedCompany.isShared ? ' 🤝' : ' 🏢';
+                document.getElementById('selectedCompanyName').textContent = selectedCompany.name + ownerLabel;
                 // Header'ı da güncelle
                 updateHeader(selectedCompany.name);
                 // Logoyu da güncelle
                 updateHeaderLogo(selectedCompany.logo || null);
             }
 
-            container.innerHTML = allCompaniesList.map(company => {
-                const isSelected = company.id === selectedCompanyId;
-                return `
-                    <div onclick="selectCompany('${company.id}')" style="padding: 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; background: ${isSelected ? '#e8f5e9' : 'white'}; transition: background 0.2s;" onmouseover="if(!${isSelected}) this.style.background='#f8f9fa'" onmouseout="if(!${isSelected}) this.style.background='white'">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            ${isSelected ? '<span style="color: #28a745; font-weight: 700;">✓</span>' : '<span style="width: 20px;"></span>'}
-                            <div style="flex: 1;">
-                                <strong style="color: #333;">${company.name}</strong>
-                                ${company.phone ? `<div style="font-size: 12px; color: #666;">📱 ${company.phone}</div>` : ''}
+            // Kendi firmaları ve paylaşılan firmaları ayır
+            const ownCompanies = allCompaniesList.filter(c => !c.isShared);
+            const sharedCompanies = allCompaniesList.filter(c => c.isShared);
+
+            let html = '';
+
+            // Kendi firmalar
+            if (ownCompanies.length > 0) {
+                html += '<div style="padding: 8px 12px; background: #f8f9fa; font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">🏢 Kendi Firmalarım</div>';
+                html += ownCompanies.map(company => {
+                    const isSelected = company.id === selectedCompanyId;
+                    return `
+                        <div onclick="selectCompany('${company.id}')" style="padding: 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; background: ${isSelected ? '#e8f5e9' : 'white'}; transition: background 0.2s;" onmouseover="if(!${isSelected}) this.style.background='#f8f9fa'" onmouseout="if(!${isSelected}) this.style.background='white'">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                ${isSelected ? '<span style="color: #28a745; font-weight: 700;">✓</span>' : '<span style="width: 20px;"></span>'}
+                                <div style="flex: 1;">
+                                    <strong style="color: #333;">${company.name}</strong>
+                                    ${company.phone ? `<div style="font-size: 12px; color: #666;">📱 ${company.phone}</div>` : ''}
+                                    <div style="font-size: 11px; color: #28a745; margin-top: 2px;">Sahibi</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
+            }
+
+            // Paylaşılan firmalar
+            if (sharedCompanies.length > 0) {
+                html += '<div style="padding: 8px 12px; background: #f8f9fa; font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-top: 2px solid #dee2e6; margin-top: 5px;">🤝 Paylaşılan Firmalar</div>';
+                html += sharedCompanies.map(company => {
+                    const isSelected = company.id === selectedCompanyId;
+                    return `
+                        <div onclick="selectCompany('${company.id}')" style="padding: 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; background: ${isSelected ? '#e3f2fd' : 'white'}; transition: background 0.2s;" onmouseover="if(!${isSelected}) this.style.background='#f8f9fa'" onmouseout="if(!${isSelected}) this.style.background='white'">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                ${isSelected ? '<span style="color: #1976d2; font-weight: 700;">✓</span>' : '<span style="width: 20px;"></span>'}
+                                <div style="flex: 1;">
+                                    <strong style="color: #333;">${company.name}</strong>
+                                    <div style="font-size: 11px; color: #1976d2; margin-top: 2px;">Sahibi: ${company.ownerEmail || 'Bilinmiyor'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            container.innerHTML = html;
         }
 
         async function selectCompany(companyId) {
