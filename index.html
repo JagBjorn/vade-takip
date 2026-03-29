@@ -3012,23 +3012,31 @@
                     uniqueCustomers[key] = {
                         name: c.name,
                         phone: c.phone,
-                        email: c.email || '-',
-                        address: c.address || '-',
+                        email: c.email || '',
+                        address: c.address || '',
                         note: c.note || '',
                         totalPaid: 0,
                         totalPending: 0,
                         paymentCount: 0,
                         lastPaymentDate: null,
-                        id: c.id, // İlk kaydın ID'si
+                        id: c.id,
                         isCustomerOnly: c.isCustomerOnly || false
                     };
                 } else {
-                    // Eğer bu kayıt isCustomerOnly ise, bilgileri güncelle ve ID'yi değiştir
+                    // Her kayıttan en güncel/dolu bilgileri al
+                    if (c.email && !uniqueCustomers[key].email) {
+                        uniqueCustomers[key].email = c.email;
+                    }
+                    if (c.address && !uniqueCustomers[key].address) {
+                        uniqueCustomers[key].address = c.address;
+                    }
+                    if (c.note && !uniqueCustomers[key].note) {
+                        uniqueCustomers[key].note = c.note;
+                    }
+                    
+                    // isCustomerOnly kaydını önceliklendir (ID için)
                     if (c.isCustomerOnly) {
                         uniqueCustomers[key].id = c.id;
-                        uniqueCustomers[key].email = c.email || uniqueCustomers[key].email;
-                        uniqueCustomers[key].address = c.address || uniqueCustomers[key].address;
-                        uniqueCustomers[key].note = c.note || uniqueCustomers[key].note;
                         uniqueCustomers[key].isCustomerOnly = true;
                     }
                 }
@@ -3238,14 +3246,50 @@
         }
 
         async function deleteCustomer(customerId) {
-            if (confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) {
-                try {
-                    await getCustomersRef().doc(customerId).delete();
-                    showNotification('🗑️ Müşteri silindi');
-                } catch (error) {
-                    console.error(error);
-                    alert('Silme işlemi başarısız');
+            try {
+                // Önce kaydı kontrol et - bu müşteri kaydı mı ödeme kaydı mı?
+                const doc = await getCustomersRef().doc(customerId).get();
+                if (!doc.exists) {
+                    alert('Kayıt bulunamadı');
+                    return;
                 }
+
+                const data = doc.data();
+                
+                // Eğer bu sadece müşteri kaydıysa (isCustomerOnly)
+                if (data.isCustomerOnly) {
+                    // Aynı müşterinin ödeme kayıtları var mı kontrol et
+                    const paymentRecords = await getCustomersRef()
+                        .where('name', '==', data.name)
+                        .where('phone', '==', data.phone)
+                        .where('isCustomerOnly', '==', false)
+                        .get();
+                    
+                    if (!paymentRecords.empty) {
+                        // Ödemeler var, sadece müşteri kaydını silme uyarısı
+                        if (!confirm(`⚠️ BU MÜŞTERİYİ SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nMüşteri: ${data.name}\n${paymentRecords.size} ödeme kaydı var!\n\nSadece müşteri bilgileri silinecek, ödemeler kalacak.`)) {
+                            return;
+                        }
+                    } else {
+                        // Ödeme yok, normal silme
+                        if (!confirm(`Müşteriyi silmek istediğinize emin misiniz?\n\n${data.name}`)) {
+                            return;
+                        }
+                    }
+                } else {
+                    // Bu bir ödeme kaydı
+                    if (!confirm(`Bu ödemeyi silmek istediğinize emin misiniz?\n\nMüşteri: ${data.name}\nTutar: ${data.amount}₺\nVade: ${data.dueDate}`)) {
+                        return;
+                    }
+                }
+
+                // Silme işlemi
+                await getCustomersRef().doc(customerId).delete();
+                showNotification('🗑️ Kayıt silindi');
+                
+            } catch (error) {
+                console.error(error);
+                alert('Silme işlemi başarısız: ' + error.message);
             }
         }
 
