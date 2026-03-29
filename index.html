@@ -665,6 +665,7 @@
                 <button class="tab" onclick="showTab('list')">📋 Liste</button>
                 <button class="tab" onclick="showTab('templates')">💬 Mesaj Şablonları</button>
                 <button class="tab" onclick="showTab('notifications')">🔔 Bildirimler</button>
+                <button class="tab" onclick="showTab('profile')">👤 Profil</button>
                 <button class="tab" onclick="showTab('settings')">⚙️ Ayarlar</button>
             </div>
 
@@ -827,6 +828,96 @@
                 <button class="btn btn-secondary" onclick="testNotification()">🧪 Test Bildirimi Gönder</button>
             </div>
 
+            <!-- Profil -->
+            <div id="profile" class="content">
+                <h2 style="margin-bottom: 20px;">👤 Profil Ayarları</h2>
+                
+                <div class="form-group">
+                    <label>E-posta</label>
+                    <input type="email" id="userEmail" disabled style="background: #f5f5f5; cursor: not-allowed;">
+                    <small style="color: #666; font-size: 12px;">E-posta adresi değiştirilemez</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Telefon Numarası</label>
+                    <input type="tel" id="userPhone" placeholder="0532 123 45 67">
+                    <small style="color: #666; font-size: 12px;">WhatsApp hatırlatmaları için kullanılacak</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Ad Soyad</label>
+                    <input type="text" id="userFullName" placeholder="Ahmet Yılmaz">
+                </div>
+
+                <button class="btn" onclick="saveProfile()">💾 Profil Bilgilerini Kaydet</button>
+
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                <h3 style="margin-bottom: 20px;">🔐 Şifre Değiştir</h3>
+                
+                <div class="form-group">
+                    <label>Mevcut Şifre</label>
+                    <input type="password" id="currentPassword" placeholder="••••••••">
+                </div>
+
+                <div class="form-group">
+                    <label>Yeni Şifre (min. 6 karakter)</label>
+                    <input type="password" id="newPassword" placeholder="••••••••">
+                </div>
+
+                <div class="form-group">
+                    <label>Yeni Şifre Tekrar</label>
+                    <input type="password" id="newPasswordConfirm" placeholder="••••••••">
+                </div>
+
+                <button class="btn btn-secondary" onclick="changePassword()">🔐 Şifre Değiştir</button>
+
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                <h3 style="margin-bottom: 20px;">👥 Kullanıcı Yönetimi</h3>
+                <p style="color: #666; margin-bottom: 20px;">Başka kullanıcıları davet ederek ortak müşteri takibi yapabilirsiniz. Yetkileri özelleştirebilirsiniz.</p>
+
+                <div class="form-group">
+                    <label>Davet Edilecek E-posta</label>
+                    <input type="email" id="inviteEmail" placeholder="ornek@email.com">
+                </div>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 15px; font-size: 14px;">Yetkiler</h4>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permView" checked disabled style="width: auto; cursor: not-allowed;">
+                        <span>👁️ Görüntüleme (müşterileri görebilir)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permEdit" checked style="width: auto;">
+                        <span>✏️ Düzenleme (müşteri bilgilerini değiştirebilir)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permPayment" checked style="width: auto;">
+                        <span>💰 Ödeme İşleme (ödeme alındı işaretleyebilir)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permWhatsapp" checked style="width: auto;">
+                        <span>📱 WhatsApp Gönderme</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permAdd" checked style="width: auto;">
+                        <span>➕ Müşteri Ekleme</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permDelete" style="width: auto;">
+                        <span>🗑️ Müşteri Silme</span>
+                    </label>
+                </div>
+
+                <button class="btn btn-success" onclick="inviteUser()">📧 Davet Gönder</button>
+
+                <div id="sharedUsersList" style="margin-top: 20px;">
+                    <h4 style="margin-bottom: 10px;">Paylaşılan Kullanıcılar</h4>
+                    <div id="sharedUsersContent" class="loading">Yükleniyor...</div>
+                </div>
+            </div>
+
             <!-- Ayarlar -->
             <div id="settings" class="content">
                 <h2 style="margin-bottom: 20px;">⚙️ Genel Ayarlar</h2>
@@ -899,10 +990,60 @@
         </div>
     </div>
 
+    <!-- Permissions Modal -->
+    <div id="permissionsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Yetkileri Düzenle</h3>
+                <button class="close-modal" onclick="closePermissionsModal()">×</button>
+            </div>
+            <input type="hidden" id="editPermUserId">
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editPermView" checked disabled style="width: auto; cursor: not-allowed;">
+                    <span>👁️ Görüntüleme (müşterileri görebilir)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editPermEdit" style="width: auto;">
+                    <span>✏️ Düzenleme (müşteri bilgilerini değiştirebilir)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editPermPayment" style="width: auto;">
+                    <span>💰 Ödeme İşleme (ödeme alındı işaretleyebilir)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editPermWhatsapp" style="width: auto;">
+                    <span>📱 WhatsApp Gönderme</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editPermAdd" style="width: auto;">
+                    <span>➕ Müşteri Ekleme</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editPermDelete" style="width: auto;">
+                    <span>🗑️ Müşteri Silme</span>
+                </label>
+            </div>
+
+            <button class="btn" onclick="savePermissions()">💾 Yetkileri Kaydet</button>
+        </div>
+    </div>
+
     <!-- Notification Toast -->
     <div id="notification" class="notification"></div>
 
     <script>
+        // Global Variables
+        let currentUser = null;
+        let customersListener = null;
+        let settingsListener = null;
+        let templatesListener = null;
+        let notificationInterval = null;
+        let selectedPaymentType = '';
+        let selectedDays = 0;
+        let currentFilter = 'all';
+
         // Loading status helper
         function updateLoadingStatus(msg) {
             const statusEl = document.getElementById('loadingStatus');
@@ -999,13 +1140,8 @@
         window.auth = firebase.auth();
         window.db = firebase.firestore();
 
-        let currentUser = null;
-        let customersListener = null;
-        let settingsListener = null;
-        let templatesListener = null;
-
         // Auth State Observer
-        auth.onAuthStateChanged(user => {
+        window.auth.onAuthStateChanged(user => {
             if (user) {
                 currentUser = user;
                 document.getElementById('authScreen').style.display = 'none';
@@ -1019,21 +1155,14 @@
             }
         });
 
+        } // End initializeFirebase
+
+        // Cleanup Listeners - GLOBAL
         function cleanupListeners() {
             if (customersListener) customersListener();
             if (settingsListener) settingsListener();
             if (templatesListener) templatesListener();
         }
-
-        // Make functions globally accessible
-        window.currentUser = null;
-        window.cleanupListeners = cleanupListeners;
-        window.getUserRef = getUserRef;
-        window.getCustomersRef = getCustomersRef;
-        window.getSettingsRef = getSettingsRef;
-        window.getTemplatesRef = getTemplatesRef;
-
-        } // End initializeFirebase
 
         // Auth Functions - GLOBAL SCOPE
         function showLoginForm() {
@@ -1180,30 +1309,332 @@
             loadCustomers();
             loadTemplates();
             loadSettings();
+            loadProfile();
+            loadSharedUsers();
             updateDashboard();
             startNotificationScheduler();
         }
 
-        // Firestore References
-        function getUserRef() {
-            return db.collection('users').doc(currentUser.uid);
+        // Profile Functions - GLOBAL
+        function loadProfile() {
+            if (!window.auth.currentUser) return;
+
+            // E-posta göster (değiştirilemez)
+            document.getElementById('userEmail').value = window.auth.currentUser.email;
+
+            // Firestore'dan profil bilgilerini yükle
+            getUserRef().get().then(doc => {
+                if (doc.exists) {
+                    const profile = doc.data();
+                    document.getElementById('userPhone').value = profile.phone || '';
+                    document.getElementById('userFullName').value = profile.fullName || '';
+                }
+            }).catch(error => {
+                console.error('Profile load error:', error);
+            });
         }
 
-        function getCustomersRef() {
-            return getUserRef().collection('customers');
+        async function saveProfile() {
+            const phone = document.getElementById('userPhone').value.trim();
+            const fullName = document.getElementById('userFullName').value.trim();
+
+            if (!fullName) {
+                alert('Lütfen ad soyad giriniz');
+                return;
+            }
+
+            try {
+                await getUserRef().set({
+                    email: window.auth.currentUser.email,
+                    phone: phone,
+                    fullName: fullName,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                showNotification('✅ Profil bilgileri kaydedildi');
+            } catch (error) {
+                console.error('Profile save error:', error);
+                alert('Kayıt başarısız: ' + error.message);
+            }
         }
 
-        function getSettingsRef() {
-            return getUserRef().collection('settings').doc('config');
+        async function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const newPasswordConfirm = document.getElementById('newPasswordConfirm').value;
+
+            if (!currentPassword || !newPassword || !newPasswordConfirm) {
+                alert('Lütfen tüm alanları doldurun');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Yeni şifre en az 6 karakter olmalıdır');
+                return;
+            }
+
+            if (newPassword !== newPasswordConfirm) {
+                alert('Yeni şifreler eşleşmiyor');
+                return;
+            }
+
+            try {
+                // Önce mevcut şifreyle yeniden giriş yap (re-authentication)
+                const credential = firebase.auth.EmailAuthProvider.credential(
+                    window.auth.currentUser.email,
+                    currentPassword
+                );
+                await window.auth.currentUser.reauthenticateWithCredential(credential);
+
+                // Şimdi şifreyi değiştir
+                await window.auth.currentUser.updatePassword(newPassword);
+
+                // Formu temizle
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('newPasswordConfirm').value = '';
+
+                showNotification('✅ Şifre başarıyla değiştirildi');
+            } catch (error) {
+                console.error('Password change error:', error);
+                if (error.code === 'auth/wrong-password') {
+                    alert('Mevcut şifre hatalı');
+                } else if (error.code === 'auth/weak-password') {
+                    alert('Yeni şifre çok zayıf');
+                } else {
+                    alert('Şifre değiştirme başarısız: ' + error.message);
+                }
+            }
         }
 
-        function getTemplatesRef() {
-            return getUserRef().collection('templates').doc('messages');
+        async function inviteUser() {
+            const inviteEmail = document.getElementById('inviteEmail').value.trim();
+
+            if (!inviteEmail) {
+                alert('Lütfen e-posta adresi girin');
+                return;
+            }
+
+            if (inviteEmail === window.auth.currentUser.email) {
+                alert('Kendinizi davet edemezsiniz');
+                return;
+            }
+
+            // Yetkileri topla
+            const permissions = {
+                view: true, // Her zaman true
+                edit: document.getElementById('permEdit').checked,
+                payment: document.getElementById('permPayment').checked,
+                whatsapp: document.getElementById('permWhatsapp').checked,
+                add: document.getElementById('permAdd').checked,
+                delete: document.getElementById('permDelete').checked
+            };
+
+            try {
+                // Davet edilen kullanıcının kayıtlı olup olmadığını kontrol et
+                const usersRef = window.db.collection('users');
+                const snapshot = await usersRef.where('email', '==', inviteEmail).get();
+
+                if (snapshot.empty) {
+                    alert('❌ Bu e-posta adresi sistemde kayıtlı değil. Önce kullanıcının kayıt olması gerekiyor.');
+                    return;
+                }
+
+                const invitedUserId = snapshot.docs[0].id;
+                const invitedUserData = snapshot.docs[0].data();
+
+                // Kendi sharedWith listene ekle (yetkiler ile)
+                const sharedData = {
+                    userId: invitedUserId,
+                    email: inviteEmail,
+                    fullName: invitedUserData.fullName || 'İsimsiz',
+                    permissions: permissions,
+                    sharedAt: new Date().toISOString()
+                };
+
+                await getUserRef().update({
+                    sharedWith: firebase.firestore.FieldValue.arrayUnion(sharedData)
+                });
+
+                // Karşı tarafa da ekle (tam yetki - çünkü o asıl sahibi)
+                const reverseSharedData = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: (await getUserRef().get()).data()?.fullName || 'İsimsiz',
+                    permissions: {
+                        view: true,
+                        edit: true,
+                        payment: true,
+                        whatsapp: true,
+                        add: true,
+                        delete: true
+                    },
+                    sharedAt: new Date().toISOString()
+                };
+
+                await window.db.collection('users').doc(invitedUserId).update({
+                    sharedWith: firebase.firestore.FieldValue.arrayUnion(reverseSharedData)
+                });
+
+                document.getElementById('inviteEmail').value = '';
+                // Checkbox'ları sıfırla
+                document.getElementById('permEdit').checked = true;
+                document.getElementById('permPayment').checked = true;
+                document.getElementById('permWhatsapp').checked = true;
+                document.getElementById('permAdd').checked = true;
+                document.getElementById('permDelete').checked = false;
+
+                showNotification('✅ Kullanıcı başarıyla eklendi');
+                loadSharedUsers();
+            } catch (error) {
+                console.error('Invite error:', error);
+                alert('Davet gönderme başarısız: ' + error.message);
+            }
         }
 
-        // Customer Functions
-        let selectedPaymentType = '';
-        let selectedDays = 0;
+        async function loadSharedUsers() {
+            const container = document.getElementById('sharedUsersContent');
+
+            try {
+                const userDoc = await getUserRef().get();
+                
+                if (!userDoc.exists || !userDoc.data().sharedWith || userDoc.data().sharedWith.length === 0) {
+                    container.innerHTML = '<p style="color: #666;">Henüz paylaşılan kullanıcı yok</p>';
+                    return;
+                }
+
+                const sharedUsers = userDoc.data().sharedWith;
+
+                container.innerHTML = sharedUsers.map(user => {
+                    const perms = user.permissions || {};
+                    const permList = [
+                        perms.edit ? '✏️ Düzenleme' : null,
+                        perms.payment ? '💰 Ödeme' : null,
+                        perms.whatsapp ? '📱 WhatsApp' : null,
+                        perms.add ? '➕ Ekleme' : null,
+                        perms.delete ? '🗑️ Silme' : null
+                    ].filter(Boolean).join(', ') || 'Sadece görüntüleme';
+
+                    return `
+                        <div class="customer-card" style="margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <strong>${user.fullName || 'İsimsiz'}</strong><br>
+                                    <span style="color: #666; font-size: 13px;">${user.email}</span><br>
+                                    <span style="color: #667eea; font-size: 12px; font-weight: 600;">Yetkiler: ${permList}</span><br>
+                                    <span style="color: #999; font-size: 11px;">Paylaşıldı: ${new Date(user.sharedAt).toLocaleDateString('tr-TR')}</span>
+                                </div>
+                                <div style="display: flex; gap: 5px; flex-direction: column;">
+                                    <button class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;" onclick="editUserPermissions('${user.userId}')">✏️ Yetkileri Düzenle</button>
+                                    <button class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;" onclick="removeSharedUser('${user.userId}')">🗑️ Kaldır</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Load shared users error:', error);
+                container.innerHTML = '<p style="color: red;">Yükleme hatası</p>';
+            }
+        }
+
+        async function removeSharedUser(userId) {
+            if (!confirm('Bu kullanıcıyı paylaşımdan kaldırmak istediğinize emin misiniz?')) {
+                return;
+            }
+
+            try {
+                // Kendi sharedWith listenden kaldır
+                const userDoc = await getUserRef().get();
+                const sharedWith = userDoc.data().sharedWith || [];
+                const updatedSharedWith = sharedWith.filter(u => u.userId !== userId);
+
+                await getUserRef().update({
+                    sharedWith: updatedSharedWith
+                });
+
+                // Karşı taraftan da kaldır
+                const otherUserDoc = await window.db.collection('users').doc(userId).get();
+                const otherSharedWith = otherUserDoc.data()?.sharedWith || [];
+                const otherUpdatedSharedWith = otherSharedWith.filter(u => u.userId !== window.auth.currentUser.uid);
+
+                await window.db.collection('users').doc(userId).update({
+                    sharedWith: otherUpdatedSharedWith
+                });
+
+                showNotification('✅ Kullanıcı kaldırıldı');
+                loadSharedUsers();
+            } catch (error) {
+                console.error('Remove shared user error:', error);
+                alert('Kaldırma başarısız: ' + error.message);
+            }
+        }
+
+        async function editUserPermissions(userId) {
+            try {
+                const userDoc = await getUserRef().get();
+                const sharedWith = userDoc.data().sharedWith || [];
+                const user = sharedWith.find(u => u.userId === userId);
+
+                if (!user) {
+                    alert('Kullanıcı bulunamadı');
+                    return;
+                }
+
+                document.getElementById('editPermUserId').value = userId;
+                document.getElementById('editPermEdit').checked = user.permissions?.edit || false;
+                document.getElementById('editPermPayment').checked = user.permissions?.payment || false;
+                document.getElementById('editPermWhatsapp').checked = user.permissions?.whatsapp || false;
+                document.getElementById('editPermAdd').checked = user.permissions?.add || false;
+                document.getElementById('editPermDelete').checked = user.permissions?.delete || false;
+
+                document.getElementById('permissionsModal').classList.add('show');
+            } catch (error) {
+                console.error('Edit permissions error:', error);
+                alert('Yetki düzenleme açılamadı');
+            }
+        }
+
+        function closePermissionsModal() {
+            document.getElementById('permissionsModal').classList.remove('show');
+        }
+
+        async function savePermissions() {
+            const userId = document.getElementById('editPermUserId').value;
+
+            const permissions = {
+                view: true,
+                edit: document.getElementById('editPermEdit').checked,
+                payment: document.getElementById('editPermPayment').checked,
+                whatsapp: document.getElementById('editPermWhatsapp').checked,
+                add: document.getElementById('editPermAdd').checked,
+                delete: document.getElementById('editPermDelete').checked
+            };
+
+            try {
+                const userDoc = await getUserRef().get();
+                const sharedWith = userDoc.data().sharedWith || [];
+                const updatedSharedWith = sharedWith.map(u => {
+                    if (u.userId === userId) {
+                        return { ...u, permissions };
+                    }
+                    return u;
+                });
+
+                await getUserRef().update({
+                    sharedWith: updatedSharedWith
+                });
+
+                showNotification('✅ Yetkiler güncellendi');
+                closePermissionsModal();
+                loadSharedUsers();
+            } catch (error) {
+                console.error('Save permissions error:', error);
+                alert('Yetki kaydetme başarısız: ' + error.message);
+            }
+        }
+
+        // Customer Functions - GLOBAL
 
         function selectPaymentType(type, days) {
             selectedPaymentType = type;
@@ -1234,6 +1665,14 @@
             }
 
             try {
+                const userProfile = (await getUserRef().get()).data();
+                const createdBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
                 await getCustomersRef().add({
                     name,
                     phone,
@@ -1243,7 +1682,14 @@
                     paymentType: selectedPaymentType || 'Manuel',
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    paidDate: null
+                    createdBy: createdBy,
+                    lastModifiedBy: createdBy,
+                    paidDate: null,
+                    activityLog: [{
+                        action: 'created',
+                        by: createdBy,
+                        timestamp: new Date().toISOString()
+                    }]
                 });
 
                 showNotification('✅ Müşteri eklendi');
@@ -1310,6 +1756,19 @@
                     statusBadge = `<span class="badge badge-info">${daysLeft} gün</span>`;
                 }
 
+                // Aktivite bilgileri
+                const createdInfo = customer.createdBy 
+                    ? `👤 ${customer.createdBy.fullName} - ${customer.createdAt ? new Date(customer.createdAt.toDate()).toLocaleDateString('tr-TR') + ' ' + new Date(customer.createdAt.toDate()).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}) : ''}` 
+                    : '';
+
+                const modifiedInfo = customer.lastModifiedBy && customer.lastModifiedBy.userId !== customer.createdBy?.userId
+                    ? `<br>✏️ Son düzenleyen: ${customer.lastModifiedBy.fullName}` 
+                    : '';
+
+                const paidInfo = customer.paidBy 
+                    ? `<br>💰 Ödemeyi alan: ${customer.paidBy.fullName} - ${customer.paidDate ? new Date(customer.paidDate.toDate()).toLocaleDateString('tr-TR') : ''}` 
+                    : '';
+
                 return `
                     <div class="${cardClass}" data-customer-id="${customer.id}">
                         <div class="customer-header">
@@ -1331,6 +1790,7 @@
                             </div>
                         </div>
                         ${customer.note ? `<div style="margin-top: 10px; color: #666; font-size: 13px;">📝 ${customer.note}</div>` : ''}
+                        ${createdInfo || modifiedInfo || paidInfo ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; color: #999; font-size: 11px;">${createdInfo}${modifiedInfo}${paidInfo}</div>` : ''}
                         <div class="customer-actions">
                             ${customer.status !== 'paid' ? `<button class="btn btn-success" onclick="markAsPaid('${customer.id}')">✓ Ödeme Alındı</button>` : ''}
                             <button class="btn btn-whatsapp" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', ${customer.amount}, '${customer.dueDate}')">WhatsApp</button>
@@ -1345,9 +1805,24 @@
         async function markAsPaid(customerId) {
             if (confirm('Ödeme alındı olarak işaretlensin mi?')) {
                 try {
+                    const userProfile = (await getUserRef().get()).data();
+                    const paidBy = {
+                        userId: window.auth.currentUser.uid,
+                        email: window.auth.currentUser.email,
+                        fullName: userProfile?.fullName || 'İsimsiz',
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
                     await getCustomersRef().doc(customerId).update({
                         status: 'paid',
-                        paidDate: firebase.firestore.FieldValue.serverTimestamp()
+                        paidDate: firebase.firestore.FieldValue.serverTimestamp(),
+                        paidBy: paidBy,
+                        lastModifiedBy: paidBy,
+                        activityLog: firebase.firestore.FieldValue.arrayUnion({
+                            action: 'marked_as_paid',
+                            by: paidBy,
+                            timestamp: new Date().toISOString()
+                        })
                     });
                     showNotification('✅ Ödeme alındı olarak işaretlendi');
                 } catch (error) {
@@ -1407,6 +1882,14 @@
             }
 
             try {
+                const userProfile = (await getUserRef().get()).data();
+                const modifiedBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
                 const updateData = {
                     name,
                     phone,
@@ -1414,11 +1897,18 @@
                     dueDate,
                     amount: parseFloat(amount),
                     note,
-                    status
+                    status,
+                    lastModifiedBy: modifiedBy,
+                    activityLog: firebase.firestore.FieldValue.arrayUnion({
+                        action: 'edited',
+                        by: modifiedBy,
+                        timestamp: new Date().toISOString()
+                    })
                 };
 
                 if (status === 'paid') {
                     updateData.paidDate = firebase.firestore.FieldValue.serverTimestamp();
+                    updateData.paidBy = modifiedBy;
                 }
 
                 await getCustomersRef().doc(customerId).update(updateData);
@@ -1720,8 +2210,7 @@
             }
         }
 
-        // Filter
-        let currentFilter = 'all';
+        // Filter - GLOBAL
 
         function filterByStatus(status) {
             currentFilter = status;
@@ -1821,8 +2310,7 @@
             }
         }
 
-        let notificationInterval = null;
-
+        // Notification Scheduler - GLOBAL
         async function startNotificationScheduler() {
             if (notificationInterval) clearInterval(notificationInterval);
             
@@ -1900,6 +2388,9 @@
             
             if (tabName === 'dashboard') {
                 updateDashboard();
+            } else if (tabName === 'profile') {
+                loadProfile();
+                loadSharedUsers();
             }
         }
 
@@ -1917,6 +2408,12 @@
         document.getElementById('editModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeEditModal();
+            }
+        });
+
+        document.getElementById('permissionsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePermissionsModal();
             }
         });
     </script>
