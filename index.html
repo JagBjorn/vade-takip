@@ -655,7 +655,7 @@
         <div class="container">
             <div class="header">
                 <div></div>
-                <h1>💼 Vade Takip</h1>
+                <h1 id="headerTitle">💼 Vade Takip</h1>
                 <button class="logout-btn" onclick="handleLogout()">Çıkış</button>
             </div>
 
@@ -2004,10 +2004,22 @@
                     document.getElementById('morningTime').value = settings.morningTime || '09:00';
                     document.getElementById('reminderInterval').value = settings.reminderInterval || 2;
                     document.getElementById('reminderEnabled').checked = settings.reminderEnabled !== false;
+                    
+                    // Header'ı güncelle
+                    updateHeader(settings.companyName);
                 }
             }, error => {
                 console.error('Settings listener error:', error);
             });
+        }
+
+        function updateHeader(companyName) {
+            const headerTitle = document.getElementById('headerTitle');
+            if (companyName && companyName.trim()) {
+                headerTitle.textContent = `💼 ${companyName} - Vade Takip`;
+            } else {
+                headerTitle.textContent = '💼 Vade Takip';
+            }
         }
 
         async function saveSettings() {
@@ -2023,6 +2035,9 @@
             try {
                 await getSettingsRef().set(settings, { merge: true });
                 showNotification('⚙️ Ayarlar kaydedildi');
+                
+                // Header'ı güncelle
+                updateHeader(settings.companyName);
             } catch (error) {
                 console.error(error);
                 alert('Kayıt başarısız');
@@ -2153,11 +2168,26 @@
                     template = templates.template3Day || 'Merhaba {isim},\n\n{tarih} tarihinde {tutar} ₺ tutarındaki ödemenize {gun} gün kaldı.\n\nTeşekkür ederiz.';
                 }
 
-                const message = template
+                let message = template
                     .replace(/{isim}/g, name)
                     .replace(/{tutar}/g, parseFloat(amount).toLocaleString('tr-TR'))
                     .replace(/{tarih}/g, new Date(dueDate).toLocaleDateString('tr-TR'))
                     .replace(/{gun}/g, daysLeft);
+
+                // Şirket bilgilerini ekle
+                const settingsDoc = await getSettingsRef().get();
+                if (settingsDoc.exists) {
+                    const settings = settingsDoc.data();
+                    if (settings.companyName || settings.contactInfo) {
+                        message += '\n\n---';
+                        if (settings.companyName) {
+                            message += '\n' + settings.companyName;
+                        }
+                        if (settings.contactInfo) {
+                            message += '\n' + settings.contactInfo;
+                        }
+                    }
+                }
 
                 const phoneNumber = phone.replace(/\D/g, '');
                 const whatsappNumber = phoneNumber.startsWith('90') ? phoneNumber : '90' + phoneNumber;
@@ -2183,6 +2213,10 @@
                     return;
                 }
 
+                // Şirket bilgilerini al
+                const settingsDoc = await getSettingsRef().get();
+                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+
                 const data = customers.map(c => ({
                     'Müşteri Adı': c.name,
                     'Telefon': c.phone,
@@ -2193,10 +2227,34 @@
                     'Kalan Gün': c.status === 'paid' ? '-' : getDaysUntilDue(c.dueDate),
                     'Not': c.note || '',
                     'Ödeme Tarihi': c.paidDate ? new Date(c.paidDate.toDate()).toLocaleDateString('tr-TR') : '-',
-                    'Eklenme Tarihi': c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString('tr-TR') : '-'
+                    'Eklenme Tarihi': c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString('tr-TR') : '-',
+                    'Ekleyen': c.createdBy?.fullName || '-',
+                    'Son Düzenleyen': c.lastModifiedBy?.fullName || '-'
                 }));
 
                 const ws = XLSX.utils.json_to_sheet(data);
+                
+                // Başlık satırları ekle
+                const headerRows = [];
+                if (settings.companyName) {
+                    headerRows.push([settings.companyName.toUpperCase() + ' - VADE TAKİP RAPORU']);
+                } else {
+                    headerRows.push(['VADE TAKİP RAPORU']);
+                }
+                
+                if (settings.contactInfo) {
+                    headerRows.push([settings.contactInfo]);
+                }
+                
+                headerRows.push(['Rapor Tarihi: ' + new Date().toLocaleDateString('tr-TR') + ' ' + new Date().toLocaleTimeString('tr-TR')]);
+                headerRows.push([]); // Boş satır
+
+                // Başlık satırlarını ekle
+                XLSX.utils.sheet_add_aoa(ws, headerRows, { origin: 'A1' });
+                
+                // Veriyi başlık satırlarından sonra ekle
+                XLSX.utils.sheet_add_json(ws, data, { origin: 'A' + (headerRows.length + 1), skipHeader: false });
+
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'Müşteriler');
                 
@@ -2290,15 +2348,19 @@
                     return daysLeft === 0 && c.status !== 'paid';
                 });
 
+                // Şirket adını al
+                const settingsDoc = await getSettingsRef().get();
+                const companyName = settingsDoc.exists ? settingsDoc.data().companyName || 'Vade Takip' : 'Vade Takip';
+
                 if (todaysDue.length > 0) {
                     sendPushNotification(
-                        '🔔 Test Bildirimi',
+                        `🔔 ${companyName} - Test Bildirimi`,
                         `Bugün ${todaysDue.length} müşterinin ödeme günü. Toplam ${todaysDue.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0).toLocaleString('tr-TR')} ₺`,
                         'test-notification'
                     );
                 } else {
                     sendPushNotification(
-                        '✅ Test Bildirimi',
+                        `✅ ${companyName} - Test Bildirimi`,
                         'Bildirimler çalışıyor! Bugün vadesi gelen ödeme yok.',
                         'test-notification'
                     );
@@ -2337,9 +2399,11 @@
                         return daysLeft === 0 && c.status !== 'paid';
                     });
 
+                    const companyName = settings.companyName || 'Vade Takip';
+
                     if (currentTime === settings.morningTime && todaysDue.length > 0) {
                         sendPushNotification(
-                            '🔔 Günlük Hatırlatma',
+                            `🔔 ${companyName} - Günlük Hatırlatma`,
                             `Bugün ${todaysDue.length} müşterinin ödeme günü`,
                             'daily-reminder'
                         );
@@ -2352,7 +2416,7 @@
                         
                         if (hoursSinceLastReminder >= settings.reminderInterval) {
                             sendPushNotification(
-                                '⏰ Hatırlatma',
+                                `⏰ ${companyName} - Hatırlatma`,
                                 `${todaysDue.length} müşteri için ödeme günü`,
                                 'interval-reminder'
                             );
