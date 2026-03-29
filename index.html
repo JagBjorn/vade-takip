@@ -720,7 +720,7 @@
             <div id="registerForm" style="display: none;">
                 <div class="form-group">
                     <label>Ad Soyad *</label>
-                    <input type="text" id="registerFullName" placeholder="Ad Soyad" required>
+                    <input type="text" id="registerFullName" placeholder="Ahmet Yılmaz" required>
                 </div>
                 <div class="form-group">
                     <label>E-posta *</label>
@@ -868,7 +868,7 @@
                     </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
-                        <input type="text" id="newCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
                     </div>
                     <div class="form-group">
                         <label>Telefon *</label>
@@ -1015,7 +1015,7 @@
 
                 <div class="form-group">
                     <label>Ad Soyad</label>
-                    <input type="text" id="userFullName" placeholder="Ad Soyad">
+                    <input type="text" id="userFullName" placeholder="Ahmet Yılmaz">
                 </div>
 
                 <button class="btn" onclick="saveProfile()">💾 Profil Bilgilerini Kaydet</button>
@@ -1040,6 +1040,19 @@
                 </div>
 
                 <button class="btn btn-secondary" onclick="changePassword()">🔐 Şifre Değiştir</button>
+
+                <hr style="margin: 30px 0; border: none; border-top: 2px solid #dc3545;">
+
+                <h3 style="color: #dc3545; margin-bottom: 15px;">⚠️ Hesabı Sil</h3>
+                <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
+                    Hesabınızı sildiğinizde:
+                    <br>• Tüm firmalarınız ve verileri kalıcı olarak silinir
+                    <br>• Paylaşılan tüm firmalar erişiminizden kaldırılır
+                    <br>• Bu işlem geri alınamaz!
+                </p>
+                <button class="btn btn-danger" onclick="deleteAccount()" style="width: 100%;">
+                    🗑️ Hesabımı Kalıcı Olarak Sil
+                </button>
 
                 <hr style="margin: 30px 0; border: none; border-top: 1px solid #e0e0e0;">
 
@@ -1084,6 +1097,18 @@
                 <div id="sharedUsersList" style="margin-top: 20px;">
                     <h4 style="margin-bottom: 10px;">Paylaşılan Kullanıcılar</h4>
                     <div id="sharedUsersContent" class="loading">Yükleniyor...</div>
+                </div>
+
+                <!-- Firmayı Sil -->
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #dc3545;">
+                    <h4 style="color: #dc3545; margin-bottom: 10px;">⚠️ Tehlikeli Bölge</h4>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Firmayı sildiğinizde tüm müşteriler, ödemeler ve paylaşımlar kalıcı olarak silinecektir. 
+                        Bu işlem geri alınamaz!
+                    </p>
+                    <button class="btn btn-danger" onclick="deleteCompany()" style="width: 100%;">
+                        🗑️ Firmayı Kalıcı Olarak Sil
+                    </button>
                 </div>
             </div>
 
@@ -1158,7 +1183,7 @@
             
             <div class="form-group">
                 <label>Ad Soyad / Şirket Adı *</label>
-                <input type="text" id="modalCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                <input type="text" id="modalCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
             </div>
 
             <div class="form-group">
@@ -1611,6 +1636,12 @@
         }
 
         async function saveCustomerEdit() {
+            // Yetki kontrolü
+            if (!hasPermission('edit')) {
+                alert('❌ Müşteri düzenleme yetkiniz yok!');
+                return;
+            }
+
             const customerId = document.getElementById('editCustomerId').value;
             const name = document.getElementById('editCustomerName').value.trim();
             const phone = document.getElementById('editCustomerPhone').value.trim();
@@ -2305,6 +2336,70 @@
             }
         }
 
+        // CASCADE DELETE - Hesabı Sil
+        async function deleteAccount() {
+            const confirmText = `⚠️ HESABINIZI KALICI OLARAK SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nBu işlem:\n• Tüm firmalarınızı\n• Tüm müşterilerinizi\n• Tüm ödemelerinizi\n• Tüm paylaşımlarınızı\nKALICI OLARAK SİLER!\n\nBU İŞLEM GERİ ALINAMAZ!`;
+
+            if (!confirm(confirmText)) {
+                return;
+            }
+
+            const emailConfirm = prompt(`Onaylamak için e-posta adresinizi yazın:\n${window.auth.currentUser.email}`);
+            
+            if (emailConfirm !== window.auth.currentUser.email) {
+                alert('E-posta adresi eşleşmedi. İşlem iptal edildi.');
+                return;
+            }
+
+            try {
+                showNotification('🗑️ Hesap siliniyor...');
+
+                const userId = window.auth.currentUser.uid;
+
+                // 1. Kendi firmalarını bul
+                const ownCompaniesSnapshot = await getCompaniesRef().get();
+                
+                // 2. Her firma için paylaşılan kullanıcıları temizle
+                for (const companyDoc of ownCompaniesSnapshot.docs) {
+                    const companyId = companyDoc.id;
+                    
+                    // Paylaşılan kullanıcıları bul
+                    const sharedUsersSnapshot = await window.db.collection('users').doc(userId)
+                        .collection('companies').doc(companyId)
+                        .collection('sharedWith').get();
+                    
+                    // Her paylaşılan kullanıcının sharedCompanies'inden sil
+                    const batch = window.db.batch();
+                    for (const sharedDoc of sharedUsersSnapshot.docs) {
+                        const sharedUserId = sharedDoc.id;
+                        const userSharedCompanyRef = window.db.collection('users').doc(sharedUserId)
+                            .collection('sharedCompanies').doc(companyId);
+                        batch.delete(userSharedCompanyRef);
+                    }
+                    await batch.commit();
+                }
+
+                // 3. Kullanıcı dokümanını sil (alt koleksiyonlar frontend'de gösterilmez)
+                await getUserRef().delete();
+
+                // 4. Authentication hesabını sil
+                await window.auth.currentUser.delete();
+
+                showNotification('✅ Hesap silindi. Güle güle!');
+                
+                // Çıkış yap
+                window.location.reload();
+
+            } catch (error) {
+                console.error('Delete account error:', error);
+                if (error.code === 'auth/requires-recent-login') {
+                    alert('Güvenlik nedeniyle lütfen önce çıkış yapıp tekrar giriş yapın, sonra hesabı silin.');
+                } else {
+                    alert('Hesap silinirken hata oluştu: ' + error.message);
+                }
+            }
+        }
+
         async function inviteUser() {
             const inviteEmail = document.getElementById('inviteEmail').value.trim();
 
@@ -2557,6 +2652,71 @@
             } catch (error) {
                 console.error('Remove shared user error:', error);
                 alert('Kaldırma başarısız');
+            }
+        }
+
+        // CASCADE DELETE - Firmayı Sil
+        async function deleteCompany() {
+            const company = allCompaniesList.find(c => c.id === selectedCompanyId);
+            
+            if (!company || company.isShared) {
+                alert('Sadece kendi firmalarınızı silebilirsiniz!');
+                return;
+            }
+
+            const confirmText = `"${company.name}" firmasını kalıcı olarak silmek istediğinize emin misiniz?\n\n⚠️ Bu işlem:\n- Tüm müşterileri\n- Tüm ödemeleri\n- Tüm ayarları\n- Tüm paylaşımları\nKALICI OLARAK SİLER!\n\nBu işlem GERİ ALINAMAZ!`;
+
+            if (!confirm(confirmText)) {
+                return;
+            }
+
+            const secondConfirm = prompt(`Onaylamak için firma adını yazın: ${company.name}`);
+            
+            if (secondConfirm !== company.name) {
+                alert('Firma adı eşleşmedi. İşlem iptal edildi.');
+                return;
+            }
+
+            try {
+                showNotification('🗑️ Firma siliniyor...');
+
+                // 1. Paylaşılan kullanıcıları bul ve onlardan da sil
+                const sharedUsersSnapshot = await getCompanySharedUsersRef().get();
+                
+                const batch = window.db.batch();
+
+                // Her paylaşılan kullanıcının sharedCompanies'inden sil
+                for (const sharedDoc of sharedUsersSnapshot.docs) {
+                    const sharedUserId = sharedDoc.id;
+                    const userSharedCompanyRef = window.db.collection('users').doc(sharedUserId)
+                        .collection('sharedCompanies').doc(selectedCompanyId);
+                    batch.delete(userSharedCompanyRef);
+                }
+
+                await batch.commit();
+                console.log('✅ Shared users cleaned up');
+
+                // 2. Firmayı sil (alt koleksiyonlar otomatik silinmez, ama frontend'de gösterilmez)
+                await getCompaniesRef().doc(selectedCompanyId).delete();
+
+                showNotification('✅ Firma silindi');
+                closeCompanySettingsModal();
+
+                // 3. Firma listesini yenile
+                await loadUserCompanies();
+
+                // 4. İlk firmayı seç (varsa)
+                if (allCompaniesList.length > 0) {
+                    await selectCompany(allCompaniesList[0].id);
+                } else {
+                    // Firma yoksa boş göster
+                    selectedCompanyId = null;
+                    updateUIBasedOnPermissions();
+                }
+
+            } catch (error) {
+                console.error('Delete company error:', error);
+                alert('Firma silinirken hata oluştu: ' + error.message);
             }
         }
 
@@ -3341,6 +3501,12 @@
         }
 
         async function addPayment() {
+            // Yetki kontrolü
+            if (!hasPermission('add')) {
+                alert('❌ Ödeme ekleme yetkiniz yok!');
+                return;
+            }
+
             const dueDate = document.getElementById('paymentDueDate').value;
             const amount = document.getElementById('paymentAmount').value;
             const note = document.getElementById('paymentNote').value.trim();
@@ -3741,6 +3907,12 @@
         }
 
         async function markAsPaid(customerId) {
+            // Yetki kontrolü
+            if (!hasPermission('payment')) {
+                alert('❌ Ödeme işleme yetkiniz yok!');
+                return;
+            }
+
             if (confirm('Ödeme alındı olarak işaretlensin mi?')) {
                 try {
                     const now = new Date().toISOString();
@@ -3772,6 +3944,12 @@
         }
 
         async function deleteCustomer(customerId) {
+            // Yetki kontrolü
+            if (!hasPermission('delete')) {
+                alert('❌ Silme yetkiniz yok!');
+                return;
+            }
+
             try {
                 // Önce kaydı kontrol et - bu müşteri kaydı mı ödeme kaydı mı?
                 const doc = await getCustomersRef().doc(customerId).get();
@@ -3949,7 +4127,7 @@
             const templateDueDay = document.getElementById('templateDueDay').value;
             
             const sampleCustomer = {
-                name: 'Ad Soyad',
+                name: 'Ahmet Yılmaz',
                 amount: 5000,
                 dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
             };
@@ -4455,6 +4633,12 @@
 
         // WhatsApp
         async function sendWhatsApp(phone, name, amount, dueDate) {
+            // Yetki kontrolü
+            if (!hasPermission('whatsapp')) {
+                alert('❌ WhatsApp gönderme yetkiniz yok!');
+                return;
+            }
+
             try {
                 const templatesDoc = await getTemplatesRef().get();
                 const templates = templatesDoc.exists ? templatesDoc.data() : {};
