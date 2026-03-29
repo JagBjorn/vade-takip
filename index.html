@@ -1264,6 +1264,75 @@
         let allCompaniesList = [];
         let companiesListener = null;
 
+        // Utility Functions - MUST BE AT TOP FOR onclick HANDLERS
+        function openAddCustomerModal() {
+            document.getElementById('addCustomerModal').classList.add('show');
+        }
+
+        function closeAddCustomerModal() {
+            document.getElementById('addCustomerModal').classList.remove('show');
+        }
+
+        function closeCustomerDetailModal() {
+            document.getElementById('customerDetailModal').classList.remove('show');
+        }
+
+        function closeEditCustomerModal() {
+            document.getElementById('editCustomerModal').classList.remove('show');
+        }
+
+        // Alias functions for onclick handlers
+        function saveNewCustomer() {
+            addCustomer();
+        }
+
+        function saveCustomerEdit() {
+            saveEdit();
+        }
+
+        function filterCustomersList() {
+            const searchTerm = document.getElementById('customerSearchBox').value.toLowerCase();
+            const customers = document.querySelectorAll('#customerList > div');
+            
+            customers.forEach(customerCard => {
+                const customerName = customerCard.querySelector('strong')?.textContent.toLowerCase() || '';
+                if (customerName.includes(searchTerm)) {
+                    customerCard.style.display = 'block';
+                } else {
+                    customerCard.style.display = 'none';
+                }
+            });
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).style.display = 'block';
+            event.target.classList.add('active');
+            
+            if (tabName === 'dashboard') {
+                updateDashboard();
+            } else if (tabName === 'profile') {
+                loadProfile();
+                loadSharedUsers();
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
         // Loading status helper
         function updateLoadingStatus(msg) {
             const statusEl = document.getElementById('loadingStatus');
@@ -1894,7 +1963,18 @@
             if (days > 0) {
                 const today = new Date();
                 today.setDate(today.getDate() + days);
-                document.getElementById('dueDate').value = today.toISOString().split('T')[0];
+                const dateStr = today.toISOString().split('T')[0];
+                
+                // Hem addCustomerModal hem de Ödeme Ekle sekmesinde olabilir
+                const dueDateField = document.getElementById('dueDate');
+                const paymentDueDateField = document.getElementById('paymentDueDate');
+                
+                if (dueDateField) {
+                    dueDateField.value = dateStr;
+                }
+                if (paymentDueDateField) {
+                    paymentDueDateField.value = dateStr;
+                }
             }
         }
 
@@ -3619,34 +3699,6 @@
                 loadProfile();
                 loadSharedUsers();
             }
-        }
-
-        function openAddCustomerModal() {
-            document.getElementById('addCustomerModal').classList.add('show');
-        }
-
-        function filterCustomersList() {
-            const searchTerm = document.getElementById('customerSearchBox').value.toLowerCase();
-            const customers = document.querySelectorAll('#customerList > div');
-            
-            customers.forEach(customerCard => {
-                const customerName = customerCard.querySelector('strong')?.textContent.toLowerCase() || '';
-                if (customerName.includes(searchTerm)) {
-                    customerCard.style.display = 'block';
-                } else {
-                    customerCard.style.display = 'none';
-                }
-            });
-        }
-
-        function showNotification(message) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
         }
 
         // Modal close on outside click
