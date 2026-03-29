@@ -661,8 +661,9 @@
 
             <div class="tabs">
                 <button class="tab active" onclick="showTab('dashboard')">📊 Dashboard</button>
-                <button class="tab" onclick="showTab('add')">➕ Müşteri Ekle</button>
-                <button class="tab" onclick="showTab('list')">📋 Liste</button>
+                <button class="tab" onclick="showTab('customers')">👥 Müşteriler</button>
+                <button class="tab" onclick="showTab('add')">➕ Ödeme Ekle</button>
+                <button class="tab" onclick="showTab('list')">📋 Ödemeler</button>
                 <button class="tab" onclick="showTab('templates')">💬 Mesaj Şablonları</button>
                 <button class="tab" onclick="showTab('notifications')">🔔 Bildirimler</button>
                 <button class="tab" onclick="showTab('profile')">👤 Profil</button>
@@ -674,8 +675,8 @@
                 <h2 style="margin-bottom: 20px;">📊 Genel Bakış</h2>
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-value" id="totalCustomers">0</div>
-                        <div class="stat-label">Toplam Müşteri</div>
+                        <div class="stat-value" id="totalCustomersStat">0</div>
+                        <div class="stat-label">Toplam Ödeme</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="urgentCount">0</div>
@@ -687,7 +688,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="paidCount">0</div>
-                        <div class="stat-label">Ödeme Yapan</div>
+                        <div class="stat-label">Ödenen İşlem</div>
                     </div>
                 </div>
 
@@ -695,11 +696,56 @@
                     <h3 style="margin-bottom: 15px;">📅 Bugünkü Hatırlatmalar</h3>
                     <div id="todayReminders" class="loading">Yükleniyor</div>
                 </div>
+
+                <div style="margin-top: 30px;">
+                    <h3 style="margin-bottom: 15px;">⭐ En Çok İşlem Yapılan Müşteriler</h3>
+                    <div id="topCustomers" class="loading">Yükleniyor</div>
+                </div>
             </div>
 
-            <!-- Müşteri Ekle -->
+            <!-- Müşteriler -->
+            <div id="customers" class="content">
+                <h2 style="margin-bottom: 20px;">👥 Müşteri Yönetimi</h2>
+                
+                <button class="btn" onclick="openAddCustomerModal()" style="margin-bottom: 20px;">➕ Yeni Müşteri Ekle</button>
+
+                <div class="search-box">
+                    <input type="text" id="customerSearchInput" placeholder="🔍 Müşteri ara..." oninput="filterCustomersList()">
+                </div>
+
+                <div id="customersList" class="customer-list loading">Yükleniyor</div>
+            </div>
+
+            <!-- Ödeme Ekle -->
             <div id="add" class="content">
-                <h2 style="margin-bottom: 20px;">➕ Yeni Müşteri Ekle</h2>
+                <h2 style="margin-bottom: 20px;">➕ Yeni Ödeme Ekle</h2>
+                
+                <div class="form-group">
+                    <label>Müşteri Seç *</label>
+                    <select id="paymentCustomerSelect" onchange="handleCustomerSelect()">
+                        <option value="">-- Müşteri Seçin --</option>
+                        <option value="new">➕ Yeni Müşteri Ekle</option>
+                    </select>
+                </div>
+
+                <div id="newCustomerFields" style="display: none;">
+                    <div class="form-group">
+                        <label>Müşteri Adı / Şirket Adı *</label>
+                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon *</label>
+                        <input type="tel" id="newCustomerPhone" placeholder="0532 123 45 67">
+                    </div>
+                    <div class="form-group">
+                        <label>E-posta</label>
+                        <input type="email" id="newCustomerEmail" placeholder="ornek@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Adres</label>
+                        <input type="text" id="newCustomerAddress" placeholder="İstanbul, Kadıköy">
+                    </div>
+                </div>
                 
                 <div class="form-group">
                     <label>Hızlı Ödeme Tipi Seçimi</label>
@@ -714,34 +760,24 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Müşteri Adı *</label>
-                    <input type="text" id="customerName" placeholder="Ahmet Yılmaz" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Telefon *</label>
-                    <input type="tel" id="customerPhone" placeholder="0532 123 45 67" required>
-                </div>
-
-                <div class="form-group">
                     <label>Vade Tarihi *</label>
-                    <input type="date" id="dueDate" required>
+                    <input type="date" id="paymentDueDate" required>
                 </div>
 
                 <div class="form-group">
                     <label>Tutar (₺) *</label>
-                    <input type="number" id="amount" placeholder="5000" step="0.01" required>
+                    <input type="number" id="paymentAmount" placeholder="5000" step="0.01" required>
                 </div>
 
                 <div class="form-group">
                     <label>Not</label>
-                    <textarea id="note" placeholder="Ek bilgiler..."></textarea>
+                    <textarea id="paymentNote" placeholder="Ek bilgiler..."></textarea>
                 </div>
 
-                <button class="btn" onclick="addCustomer()">Müşteri Ekle</button>
+                <button class="btn" onclick="addPayment()">💾 Ödeme Ekle</button>
             </div>
 
-            <!-- Liste -->
+            <!-- Ödemeler -->
             <div id="list" class="content">
                 <h2 style="margin-bottom: 20px;">📋 Müşteri Listesi</h2>
                 
@@ -933,7 +969,8 @@
                 </div>
 
                 <button class="btn" onclick="saveSettings()">💾 Kaydet</button>
-                <button class="btn btn-danger" onclick="clearAllData()" style="margin-top: 20px; width: 100%;">🗑️ Tüm Verileri Sil</button>
+                <button class="btn btn-danger" onclick="initiateAccountDeletion()" style="margin-top: 20px; width: 100%;">🗑️ Hesabı Sil</button>
+                <button class="btn btn-secondary" onclick="clearAllData()" style="margin-top: 10px; width: 100%;">🗑️ Sadece Verileri Temizle (Hesap kalır)</button>
             </div>
         </div>
     </div>
@@ -1030,6 +1067,93 @@
         </div>
     </div>
 
+    <!-- Add Customer Modal -->
+    <div id="addCustomerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Yeni Müşteri Ekle</h3>
+                <button class="close-modal" onclick="closeAddCustomerModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Ad Soyad / Şirket Adı *</label>
+                <input type="text" id="modalCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
+            </div>
+
+            <div class="form-group">
+                <label>Telefon *</label>
+                <input type="tel" id="modalCustomerPhone" placeholder="0532 123 45 67">
+            </div>
+
+            <div class="form-group">
+                <label>E-posta</label>
+                <input type="email" id="modalCustomerEmail" placeholder="ornek@email.com">
+            </div>
+
+            <div class="form-group">
+                <label>Adres</label>
+                <input type="text" id="modalCustomerAddress" placeholder="İstanbul, Kadıköy">
+            </div>
+
+            <div class="form-group">
+                <label>Not</label>
+                <textarea id="modalCustomerNote" placeholder="Müşteri hakkında notlar..."></textarea>
+            </div>
+
+            <button class="btn" onclick="saveNewCustomer()">💾 Müşteri Kaydet</button>
+        </div>
+    </div>
+
+    <!-- Edit Customer Modal -->
+    <div id="editCustomerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Müşteri Düzenle</h3>
+                <button class="close-modal" onclick="closeEditCustomerModal()">×</button>
+            </div>
+            <input type="hidden" id="editCustomerId">
+            
+            <div class="form-group">
+                <label>Ad Soyad / Şirket Adı *</label>
+                <input type="text" id="editCustomerName">
+            </div>
+
+            <div class="form-group">
+                <label>Telefon *</label>
+                <input type="tel" id="editCustomerPhone">
+            </div>
+
+            <div class="form-group">
+                <label>E-posta</label>
+                <input type="email" id="editCustomerEmail">
+            </div>
+
+            <div class="form-group">
+                <label>Adres</label>
+                <input type="text" id="editCustomerAddress">
+            </div>
+
+            <div class="form-group">
+                <label>Not</label>
+                <textarea id="editCustomerNote"></textarea>
+            </div>
+
+            <button class="btn" onclick="saveCustomerEdit()">💾 Kaydet</button>
+        </div>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div id="customerDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="customerDetailTitle">Müşteri Detayı</h3>
+                <button class="close-modal" onclick="closeCustomerDetailModal()">×</button>
+            </div>
+            
+            <div id="customerDetailContent" class="loading">Yükleniyor...</div>
+        </div>
+    </div>
+
     <!-- Notification Toast -->
     <div id="notification" class="notification"></div>
 
@@ -1037,12 +1161,15 @@
         // Global Variables
         let currentUser = null;
         let customersListener = null;
+        let paymentsListener = null;
         let settingsListener = null;
         let templatesListener = null;
         let notificationInterval = null;
         let selectedPaymentType = '';
         let selectedDays = 0;
         let currentFilter = 'all';
+        let allCustomersList = [];
+        let allPaymentsList = [];
 
         // Loading status helper
         function updateLoadingStatus(msg) {
@@ -1192,6 +1319,10 @@
             return getUserRef().collection('customers');
         }
 
+        function getPaymentsRef() {
+            return getUserRef().collection('payments');
+        }
+
         function getSettingsRef() {
             return getUserRef().collection('settings').doc('config');
         }
@@ -1306,7 +1437,8 @@
         // Initialize App - GLOBAL
         function initializeApp() {
             requestNotificationPermission();
-            loadCustomers();
+            loadCustomersList();
+            loadPayments();
             loadTemplates();
             loadSettings();
             loadProfile();
@@ -1730,11 +1862,29 @@
             const container = document.getElementById('customerList');
             
             if (customers.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #666;">Henüz müşteri eklenmemiş</p>';
+                container.innerHTML = '<p style="text-align: center; color: #666;">Henüz ödeme eklenmemiş</p>';
                 return;
             }
 
             customers.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+            // Müşteri bazlı toplam hesapla
+            const customerTotals = {};
+            customers.forEach(c => {
+                if (!customerTotals[c.name]) {
+                    customerTotals[c.name] = {
+                        totalPaid: 0,
+                        totalPending: 0,
+                        paymentCount: 0
+                    };
+                }
+                customerTotals[c.name].paymentCount++;
+                if (c.status === 'paid') {
+                    customerTotals[c.name].totalPaid += parseFloat(c.amount || 0);
+                } else {
+                    customerTotals[c.name].totalPending += parseFloat(c.amount || 0);
+                }
+            });
 
             container.innerHTML = customers.map(customer => {
                 const daysLeft = getDaysUntilDue(customer.dueDate);
@@ -1769,6 +1919,20 @@
                     ? `<br>💰 Ödemeyi alan: ${customer.paidBy.fullName} - ${customer.paidDate ? new Date(customer.paidDate.toDate()).toLocaleDateString('tr-TR') : ''}` 
                     : '';
 
+                // Müşteri toplam bilgisi
+                const customerTotal = customerTotals[customer.name];
+                const totalInfo = `
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 2px dashed #e0e0e0; background: #f0f8ff; padding: 10px; border-radius: 8px;">
+                        <strong style="color: #667eea;">📊 ${customer.name} - Genel Durum:</strong><br>
+                        <span style="font-size: 13px; color: #666;">
+                            Toplam ${customerTotal.paymentCount} işlem • 
+                            <span style="color: #28a745; font-weight: 600;">Ödenen: ${customerTotal.totalPaid.toLocaleString('tr-TR')} ₺</span> • 
+                            <span style="color: #dc3545; font-weight: 600;">Bekleyen: ${customerTotal.totalPending.toLocaleString('tr-TR')} ₺</span> • 
+                            <span style="color: #333; font-weight: 700;">Toplam: ${(customerTotal.totalPaid + customerTotal.totalPending).toLocaleString('tr-TR')} ₺</span>
+                        </span>
+                    </div>
+                `;
+
                 return `
                     <div class="${cardClass}" data-customer-id="${customer.id}">
                         <div class="customer-header">
@@ -1791,11 +1955,12 @@
                         </div>
                         ${customer.note ? `<div style="margin-top: 10px; color: #666; font-size: 13px;">📝 ${customer.note}</div>` : ''}
                         ${createdInfo || modifiedInfo || paidInfo ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; color: #999; font-size: 11px;">${createdInfo}${modifiedInfo}${paidInfo}</div>` : ''}
+                        ${totalInfo}
                         <div class="customer-actions">
-                            ${customer.status !== 'paid' ? `<button class="btn btn-success" onclick="markAsPaid('${customer.id}')">✓ Ödeme Alındı</button>` : ''}
-                            <button class="btn btn-whatsapp" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', ${customer.amount}, '${customer.dueDate}')">WhatsApp</button>
-                            <button class="btn btn-secondary" onclick="openEditModal('${customer.id}')">✏️ Düzenle</button>
-                            <button class="btn btn-danger" onclick="deleteCustomer('${customer.id}')">🗑️ Sil</button>
+                            ${customer.status !== 'paid' ? `<button class="btn btn-success btn-small" onclick="markAsPaid('${customer.id}')">✓ Ödeme Alındı</button>` : ''}
+                            <button class="btn btn-whatsapp btn-small" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', ${customer.amount}, '${customer.dueDate}')">WhatsApp</button>
+                            <button class="btn btn-secondary btn-small" onclick="openEditModal('${customer.id}')">✏️ Düzenle</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteCustomer('${customer.id}')">🗑️ Sil</button>
                         </div>
                     </div>
                 `;
@@ -2045,10 +2210,10 @@
         }
 
         async function clearAllData() {
-            if (confirm('TÜM VERİLER SİLİNECEK! Bu işlem geri alınamaz. Emin misiniz?')) {
-                if (confirm('Son kez soruyoruz: Tüm müşteriler, şablonlar ve ayarlar silinecek. Devam edilsin mi?')) {
+            if (confirm('SADECE VERİLER SİLİNECEK! Hesabınız kalacak. Emin misiniz?')) {
+                if (confirm('Son kez soruyoruz: Tüm müşteriler ve ödemeler silinecek. Devam edilsin mi?')) {
                     try {
-                        const batch = db.batch();
+                        const batch = window.db.batch();
                         
                         const customersSnapshot = await getCustomersRef().get();
                         customersSnapshot.forEach(doc => {
@@ -2065,6 +2230,106 @@
                         console.error(error);
                         alert('Silme işlemi başarısız');
                     }
+                }
+            }
+        }
+
+        async function initiateAccountDeletion() {
+            const confirmText = 'HESABINIZ TAMAMEN SİLİNECEK!\n\nDevam ederseniz hesabınız ve tüm verileriniz kalıcı olarak silinecek.\n\nBu işlem GERİ ALINAMAZ!\n\nEmin misiniz?';
+            
+            if (!confirm(confirmText)) {
+                return;
+            }
+
+            if (!confirm('SON UYARI!\n\nHesabınız şimdi silinecek. Bu işlem geri alınamaz!\n\nDevam etmek istiyor musunuz?')) {
+                return;
+            }
+
+            try {
+                // Önce verileri yedekle
+                await backupUserDataBeforeDeletion();
+                
+                // Sonra hesabı sil
+                await confirmAccountDeletion();
+
+            } catch (error) {
+                console.error('Account deletion error:', error);
+                alert('Hesap silme işlemi başarısız: ' + error.message);
+            }
+        }
+
+        async function backupUserDataBeforeDeletion() {
+            try {
+                const userId = window.auth.currentUser.uid;
+                const userEmail = window.auth.currentUser.email;
+                
+                showNotification('📦 Verileriniz yedekleniyor...');
+
+                const userData = {
+                    email: userEmail,
+                    deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    deletionDate: new Date().toISOString()
+                };
+
+                const userDoc = await getUserRef().get();
+                if (userDoc.exists) {
+                    userData.profile = userDoc.data();
+                }
+
+                const customersSnapshot = await getCustomersRef().get();
+                userData.customers = [];
+                customersSnapshot.forEach(doc => {
+                    userData.customers.push({ id: doc.id, ...doc.data() });
+                });
+
+                const settingsDoc = await getSettingsRef().get();
+                if (settingsDoc.exists) {
+                    userData.settings = settingsDoc.data();
+                }
+
+                const templatesDoc = await getTemplatesRef().get();
+                if (templatesDoc.exists) {
+                    userData.templates = templatesDoc.data();
+                }
+
+                await window.db.collection('deleted_accounts').doc(userId).set(userData);
+                
+                showNotification('✅ Veriler yedeklendi');
+            } catch (error) {
+                console.error('Backup error:', error);
+                throw new Error('Veri yedekleme başarısız');
+            }
+        }
+
+        async function confirmAccountDeletion() {
+            try {
+                showNotification('🗑️ Hesap siliniyor...');
+
+                const batch = window.db.batch();
+                
+                const customersSnapshot = await getCustomersRef().get();
+                customersSnapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                
+                batch.delete(getSettingsRef());
+                batch.delete(getTemplatesRef());
+                
+                await batch.commit();
+
+                await getUserRef().delete();
+                await window.auth.currentUser.delete();
+
+                alert('✅ Hesabınız başarıyla silindi.\n\nVerileriniz 30 gün boyunca yedekte tutulacak.');
+                window.location.reload();
+
+            } catch (error) {
+                console.error('Deletion error:', error);
+                
+                if (error.code === 'auth/requires-recent-login') {
+                    alert('❌ Güvenlik nedeniyle tekrar giriş yapmanız gerekiyor.\n\nÇıkış yapıp tekrar giriş yapın ve işlemi tekrarlayın.');
+                } else {
+                    throw error;
                 }
             }
         }
@@ -2090,15 +2355,96 @@
                 
                 const paidCount = customers.filter(c => c.status === 'paid').length;
 
-                document.getElementById('totalCustomers').textContent = totalCustomers;
+                document.getElementById('totalCustomersStat').textContent = totalCustomers;
                 document.getElementById('urgentCount').textContent = urgentCustomers;
                 document.getElementById('pendingAmount').textContent = pendingAmount.toLocaleString('tr-TR') + '₺';
                 document.getElementById('paidCount').textContent = paidCount;
 
                 renderTodayReminders(customers);
+                renderTopCustomers(customers);
             } catch (error) {
                 console.error(error);
             }
+        }
+
+        function renderTopCustomers(payments) {
+            const container = document.getElementById('topCustomers');
+            
+            if (payments.length === 0) {
+                container.innerHTML = '<p style="color: #666;">Henüz ödeme kaydı yok</p>';
+                return;
+            }
+
+            // Müşteri bazında grupla
+            const customerStats = {};
+            
+            payments.forEach(payment => {
+                const customerName = payment.name;
+                
+                if (!customerStats[customerName]) {
+                    customerStats[customerName] = {
+                        name: customerName,
+                        phone: payment.phone,
+                        totalPayments: 0,
+                        paidAmount: 0,
+                        pendingAmount: 0,
+                        paymentCount: 0
+                    };
+                }
+                
+                customerStats[customerName].paymentCount++;
+                
+                if (payment.status === 'paid') {
+                    customerStats[customerName].paidAmount += parseFloat(payment.amount || 0);
+                } else {
+                    customerStats[customerName].pendingAmount += parseFloat(payment.amount || 0);
+                }
+                
+                customerStats[customerName].totalPayments = 
+                    customerStats[customerName].paidAmount + customerStats[customerName].pendingAmount;
+            });
+
+            // Array'e çevir ve sırala (toplam işlem sayısına göre)
+            const topCustomers = Object.values(customerStats)
+                .sort((a, b) => b.paymentCount - a.paymentCount)
+                .slice(0, 5);
+
+            if (topCustomers.length === 0) {
+                container.innerHTML = '<p style="color: #666;">Henüz müşteri verisi yok</p>';
+                return;
+            }
+
+            container.innerHTML = topCustomers.map((customer, index) => `
+                <div class="customer-card" style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <span style="font-size: 20px; font-weight: 700; color: #667eea;">#${index + 1}</span>
+                                <strong style="font-size: 16px;">${customer.name}</strong>
+                            </div>
+                            <div style="font-size: 13px; color: #666;">
+                                📱 ${customer.phone}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 18px; font-weight: 700; color: #667eea;">
+                                ${customer.paymentCount} işlem
+                            </div>
+                            <div style="font-size: 13px; color: #28a745; font-weight: 600;">
+                                Ödenen: ${customer.paidAmount.toLocaleString('tr-TR')} ₺
+                            </div>
+                            ${customer.pendingAmount > 0 ? `
+                                <div style="font-size: 13px; color: #dc3545; font-weight: 600;">
+                                    Bekleyen: ${customer.pendingAmount.toLocaleString('tr-TR')} ₺
+                                </div>
+                            ` : ''}
+                            <div style="font-size: 14px; color: #333; font-weight: 600; margin-top: 5px;">
+                                Toplam: ${customer.totalPayments.toLocaleString('tr-TR')} ₺
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         function renderTodayReminders(customers) {
@@ -2209,7 +2555,7 @@
                 });
                 
                 if (customers.length === 0) {
-                    alert('Dışa aktarılacak müşteri bulunamadı');
+                    alert('Dışa aktarılacak ödeme bulunamadı');
                     return;
                 }
 
@@ -2217,29 +2563,116 @@
                 const settingsDoc = await getSettingsRef().get();
                 const settings = settingsDoc.exists ? settingsDoc.data() : {};
 
-                const data = customers.map(c => ({
-                    'Müşteri Adı': c.name,
-                    'Telefon': c.phone,
-                    'Vade Tarihi': new Date(c.dueDate).toLocaleDateString('tr-TR'),
-                    'Ödeme Tipi': c.paymentType || '-',
-                    'Tutar (₺)': parseFloat(c.amount),
-                    'Durum': c.status === 'paid' ? 'Ödendi' : c.status === 'postponed' ? 'Ertelendi' : 'Bekliyor',
-                    'Kalan Gün': c.status === 'paid' ? '-' : getDaysUntilDue(c.dueDate),
-                    'Not': c.note || '',
-                    'Ödeme Tarihi': c.paidDate ? new Date(c.paidDate.toDate()).toLocaleDateString('tr-TR') : '-',
-                    'Eklenme Tarihi': c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString('tr-TR') : '-',
-                    'Ekleyen': c.createdBy?.fullName || '-',
-                    'Son Düzenleyen': c.lastModifiedBy?.fullName || '-'
-                }));
+                // Müşteri adına göre grupla
+                const groupedByCustomer = {};
+                customers.forEach(c => {
+                    if (!groupedByCustomer[c.name]) {
+                        groupedByCustomer[c.name] = [];
+                    }
+                    groupedByCustomer[c.name].push(c);
+                });
 
-                const ws = XLSX.utils.json_to_sheet(data);
+                // Excel verisi oluştur
+                const excelData = [];
+                
+                Object.keys(groupedByCustomer).sort().forEach(customerName => {
+                    const customerPayments = groupedByCustomer[customerName];
+                    
+                    // Müşteri ödemeleri
+                    customerPayments.forEach(c => {
+                        excelData.push({
+                            'Müşteri Adı': c.name,
+                            'Telefon': c.phone,
+                            'Vade Tarihi': new Date(c.dueDate).toLocaleDateString('tr-TR'),
+                            'Ödeme Tipi': c.paymentType || '-',
+                            'Tutar (₺)': parseFloat(c.amount),
+                            'Durum': c.status === 'paid' ? 'Ödendi' : c.status === 'postponed' ? 'Ertelendi' : 'Bekliyor',
+                            'Kalan Gün': c.status === 'paid' ? '-' : getDaysUntilDue(c.dueDate),
+                            'Not': c.note || '',
+                            'Ödeme Tarihi': c.paidDate ? new Date(c.paidDate.toDate()).toLocaleDateString('tr-TR') : '-',
+                            'Eklenme Tarihi': c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString('tr-TR') : '-',
+                            'Ekleyen': c.createdBy?.fullName || '-',
+                            'Son Düzenleyen': c.lastModifiedBy?.fullName || '-'
+                        });
+                    });
+
+                    // Müşteri ara toplamı
+                    const totalPaid = customerPayments
+                        .filter(c => c.status === 'paid')
+                        .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+                    
+                    const totalPending = customerPayments
+                        .filter(c => c.status !== 'paid')
+                        .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+                    
+                    const totalAmount = totalPaid + totalPending;
+
+                    excelData.push({
+                        'Müşteri Adı': `>>> ${customerName} - ARA TOPLAM <<<`,
+                        'Telefon': '',
+                        'Vade Tarihi': '',
+                        'Ödeme Tipi': `${customerPayments.length} İşlem`,
+                        'Tutar (₺)': totalAmount,
+                        'Durum': `Ödenen: ${totalPaid.toFixed(2)} ₺`,
+                        'Kalan Gün': `Bekleyen: ${totalPending.toFixed(2)} ₺`,
+                        'Not': '',
+                        'Ödeme Tarihi': '',
+                        'Eklenme Tarihi': '',
+                        'Ekleyen': '',
+                        'Son Düzenleyen': ''
+                    });
+
+                    // Boş satır (müşteriler arası)
+                    excelData.push({
+                        'Müşteri Adı': '',
+                        'Telefon': '',
+                        'Vade Tarihi': '',
+                        'Ödeme Tipi': '',
+                        'Tutar (₺)': '',
+                        'Durum': '',
+                        'Kalan Gün': '',
+                        'Not': '',
+                        'Ödeme Tarihi': '',
+                        'Eklenme Tarihi': '',
+                        'Ekleyen': '',
+                        'Son Düzenleyen': ''
+                    });
+                });
+
+                // Genel toplam
+                const grandTotalPaid = customers
+                    .filter(c => c.status === 'paid')
+                    .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+                
+                const grandTotalPending = customers
+                    .filter(c => c.status !== 'paid')
+                    .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+                
+                const grandTotal = grandTotalPaid + grandTotalPending;
+
+                excelData.push({
+                    'Müşteri Adı': '=== GENEL TOPLAM ===',
+                    'Telefon': '',
+                    'Vade Tarihi': '',
+                    'Ödeme Tipi': `${customers.length} İşlem`,
+                    'Tutar (₺)': grandTotal,
+                    'Durum': `Ödenen: ${grandTotalPaid.toFixed(2)} ₺`,
+                    'Kalan Gün': `Bekleyen: ${grandTotalPending.toFixed(2)} ₺`,
+                    'Not': '',
+                    'Ödeme Tarihi': '',
+                    'Eklenme Tarihi': '',
+                    'Ekleyen': '',
+                    'Son Düzenleyen': ''
+                });
+
+                const ws = XLSX.utils.json_to_sheet(excelData);
                 
                 // Başlık satırları ekle
                 const headerRows = [];
                 if (settings.companyName) {
-                    headerRows.push([settings.companyName.toUpperCase() + ' - VADE TAKİP RAPORU']);
+                    headerRows.push([settings.companyName.toUpperCase() + ' - VADE TAKİP RAPORU (MÜŞTERİ BAZLI)']);
                 } else {
-                    headerRows.push(['VADE TAKİP RAPORU']);
+                    headerRows.push(['VADE TAKİP RAPORU (MÜŞTERİ BAZLI)']);
                 }
                 
                 if (settings.contactInfo) {
@@ -2247,21 +2680,22 @@
                 }
                 
                 headerRows.push(['Rapor Tarihi: ' + new Date().toLocaleDateString('tr-TR') + ' ' + new Date().toLocaleTimeString('tr-TR')]);
+                headerRows.push(['Toplam Müşteri: ' + Object.keys(groupedByCustomer).length + ' | Toplam İşlem: ' + customers.length]);
                 headerRows.push([]); // Boş satır
 
                 // Başlık satırlarını ekle
                 XLSX.utils.sheet_add_aoa(ws, headerRows, { origin: 'A1' });
                 
                 // Veriyi başlık satırlarından sonra ekle
-                XLSX.utils.sheet_add_json(ws, data, { origin: 'A' + (headerRows.length + 1), skipHeader: false });
+                XLSX.utils.sheet_add_json(ws, excelData, { origin: 'A' + (headerRows.length + 1), skipHeader: false });
 
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Müşteriler');
+                XLSX.utils.book_append_sheet(wb, ws, 'Müşteri Bazlı Rapor');
                 
                 const fileName = `vade_takip_${new Date().toISOString().split('T')[0]}.xlsx`;
                 XLSX.writeFile(wb, fileName);
                 
-                showNotification('📥 Excel dosyası indirildi');
+                showNotification('📥 Excel dosyası indirildi (Müşteri bazlı)');
             } catch (error) {
                 console.error(error);
                 alert('Excel export hatası');
