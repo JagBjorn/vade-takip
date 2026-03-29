@@ -1926,6 +1926,26 @@
                 console.error('No company selected!');
                 return null;
             }
+            
+            // Seçili firmayı bul
+            const selectedCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
+            
+            if (!selectedCompany) {
+                console.error('Selected company not found in list!');
+                return null;
+            }
+            
+            // EĞER PAYLAŞILAN FİRMAYSA - Owner'ın koleksiyonuna git
+            if (selectedCompany.isShared) {
+                console.log('📂 Accessing shared company via owner:', selectedCompany.ownerId);
+                return window.db.collection('users')
+                    .doc(selectedCompany.ownerId)
+                    .collection('companies')
+                    .doc(selectedCompany.companyId);  // Gerçek company ID
+            }
+            
+            // KENDİ FİRMASIYSA - Kendi koleksiyonuna git
+            console.log('📂 Accessing own company:', selectedCompanyId);
             return getCompaniesRef().doc(selectedCompanyId);
         }
 
@@ -2143,6 +2163,7 @@
         async function initializeApp() {
             requestNotificationPermission();
             await loadUserCompanies(); // Firmaları yükle VE BEKLENİYOR
+            updateUIBasedOnPermissions(); // Yetkilere göre UI güncelle
             loadCustomers();
             loadTemplates();
             loadSettings();
@@ -2857,6 +2878,50 @@
             container.innerHTML = html;
         }
 
+        // Yetki kontrol fonksiyonları
+        function isCurrentCompanyShared() {
+            const currentCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
+            return currentCompany?.isShared || false;
+        }
+
+        function hasPermission(permission) {
+            const currentCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
+            if (!currentCompany || !currentCompany.isShared) {
+                return true; // Kendi firmasıysa tüm yetkiler var
+            }
+            return currentCompany.permissions?.[permission] || false;
+        }
+
+        function updateUIBasedOnPermissions() {
+            const isShared = isCurrentCompanyShared();
+            
+            // Profil sekmesini gizle/göster
+            const profileTab = document.querySelector('.tab[onclick*="profile"]');
+            if (profileTab) {
+                profileTab.style.display = isShared ? 'none' : 'block';
+            }
+            
+            // Ayarlar sekmesini gizle/göster
+            const settingsTab = document.querySelector('.tab[onclick*="settings"]');
+            if (settingsTab) {
+                settingsTab.style.display = isShared ? 'none' : 'block';
+            }
+            
+            // Firma Ayarları butonunu gizle/göster
+            const companySettingsBtn = document.querySelector('button[onclick*="openCompanySettingsModal"]');
+            if (companySettingsBtn) {
+                companySettingsBtn.style.display = isShared ? 'none' : 'block';
+            }
+            
+            // Yeni Firma Ekle butonunu gizle/göster
+            const createCompanyBtn = document.querySelector('button[onclick*="openCreateCompanyModal"]');
+            if (createCompanyBtn) {
+                createCompanyBtn.style.display = isShared ? 'none' : 'block';
+            }
+            
+            console.log('🔒 UI updated based on permissions. Shared company:', isShared);
+        }
+
         async function selectCompany(companyId) {
             if (selectedCompanyId === companyId) {
                 toggleCompanyDropdown();
@@ -2868,7 +2933,8 @@
 
             const company = allCompaniesList.find(c => c.id === companyId);
             if (company) {
-                document.getElementById('selectedCompanyName').textContent = company.name;
+                const ownerLabel = company.isShared ? ' 🤝' : ' 🏢';
+                document.getElementById('selectedCompanyName').textContent = company.name + ownerLabel;
                 // Header'ı hemen güncelle (loadSettings beklemeden)
                 updateHeader(company.name);
                 // Logoyu güncelle
@@ -2876,6 +2942,9 @@
             }
 
             toggleCompanyDropdown();
+            
+            // Yetkilere göre UI'ı güncelle
+            updateUIBasedOnPermissions();
             
             // Tüm verileri yeniden yükle
             await reloadAllData();
