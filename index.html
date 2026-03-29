@@ -2413,12 +2413,13 @@
             }
 
             try {
+                const now = new Date().toISOString();
                 const userProfile = (await getUserRef().get()).data();
                 const createdBy = {
                     userId: window.auth.currentUser.uid,
                     email: window.auth.currentUser.email,
                     fullName: userProfile?.fullName || 'İsimsiz',
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    timestamp: now
                 };
 
                 await getCustomersRef().add({
@@ -2436,7 +2437,7 @@
                     activityLog: [{
                         action: 'created',
                         by: createdBy,
-                        timestamp: new Date().toISOString()
+                        timestamp: now
                     }]
                 });
 
@@ -2478,12 +2479,13 @@
             }
 
             try {
+                const now = new Date().toISOString();
                 const userProfile = (await getUserRef().get()).data();
                 const createdBy = {
                     userId: window.auth.currentUser.uid,
                     email: window.auth.currentUser.email,
                     fullName: userProfile?.fullName || 'İsimsiz',
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    timestamp: now
                 };
 
                 await getCustomersRef().add({
@@ -2501,7 +2503,7 @@
                     activityLog: [{
                         action: 'created',
                         by: createdBy,
-                        timestamp: new Date().toISOString()
+                        timestamp: now
                     }]
                 });
 
@@ -2662,12 +2664,13 @@
         async function markAsPaid(customerId) {
             if (confirm('Ödeme alındı olarak işaretlensin mi?')) {
                 try {
+                    const now = new Date().toISOString();
                     const userProfile = (await getUserRef().get()).data();
                     const paidBy = {
                         userId: window.auth.currentUser.uid,
                         email: window.auth.currentUser.email,
                         fullName: userProfile?.fullName || 'İsimsiz',
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        timestamp: now
                     };
 
                     await getCustomersRef().doc(customerId).update({
@@ -2678,7 +2681,7 @@
                         activityLog: firebase.firestore.FieldValue.arrayUnion({
                             action: 'marked_as_paid',
                             by: paidBy,
-                            timestamp: new Date().toISOString()
+                            timestamp: now
                         })
                     });
                     showNotification('✅ Ödeme alındı olarak işaretlendi');
@@ -2739,12 +2742,13 @@
             }
 
             try {
+                const now = new Date().toISOString();
                 const userProfile = (await getUserRef().get()).data();
                 const modifiedBy = {
                     userId: window.auth.currentUser.uid,
                     email: window.auth.currentUser.email,
                     fullName: userProfile?.fullName || 'İsimsiz',
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    timestamp: now
                 };
 
                 const updateData = {
@@ -2759,7 +2763,7 @@
                     activityLog: firebase.firestore.FieldValue.arrayUnion({
                         action: 'edited',
                         by: modifiedBy,
-                        timestamp: new Date().toISOString()
+                        timestamp: now
                     })
                 };
 
@@ -3615,6 +3619,24 @@
                 loadProfile();
                 loadSharedUsers();
             }
+        }
+
+        function openAddCustomerModal() {
+            document.getElementById('addCustomerModal').classList.add('show');
+        }
+
+        function filterCustomersList() {
+            const searchTerm = document.getElementById('customerSearchBox').value.toLowerCase();
+            const customers = document.querySelectorAll('#customerList > div');
+            
+            customers.forEach(customerCard => {
+                const customerName = customerCard.querySelector('strong')?.textContent.toLowerCase() || '';
+                if (customerName.includes(searchTerm)) {
+                    customerCard.style.display = 'block';
+                } else {
+                    customerCard.style.display = 'none';
+                }
+            });
         }
 
         function showNotification(message) {
