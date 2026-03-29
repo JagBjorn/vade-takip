@@ -1282,12 +1282,113 @@
         }
 
         // Alias functions for onclick handlers
-        function saveNewCustomer() {
-            addCustomer();
+        async function saveNewCustomer() {
+            // Modal'dan müşteri ekle
+            const name = document.getElementById('modalCustomerName').value.trim();
+            const phone = document.getElementById('modalCustomerPhone').value.trim();
+            const email = document.getElementById('modalCustomerEmail').value.trim();
+            const address = document.getElementById('modalCustomerAddress').value.trim();
+            const note = document.getElementById('modalCustomerNote').value.trim();
+
+            if (!name || !phone) {
+                alert('Lütfen ad ve telefon giriniz');
+                return;
+            }
+
+            try {
+                const now = new Date().toISOString();
+                const userProfile = (await getUserRef().get()).data();
+                const createdBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+
+                await getCustomersRef().add({
+                    name,
+                    phone,
+                    email,
+                    address,
+                    note,
+                    dueDate: null,
+                    amount: 0,
+                    paymentType: 'Manuel',
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: createdBy,
+                    lastModifiedBy: createdBy,
+                    paidDate: null,
+                    activityLog: [{
+                        action: 'created',
+                        by: createdBy,
+                        timestamp: now
+                    }]
+                });
+
+                showNotification('✅ Müşteri eklendi');
+                
+                // Formu temizle
+                document.getElementById('modalCustomerName').value = '';
+                document.getElementById('modalCustomerPhone').value = '';
+                document.getElementById('modalCustomerEmail').value = '';
+                document.getElementById('modalCustomerAddress').value = '';
+                document.getElementById('modalCustomerNote').value = '';
+                
+                // Modal'ı kapat
+                closeAddCustomerModal();
+                
+                // Müşteri listesini güncelle
+                await loadAllCustomersForSearch();
+            } catch (error) {
+                console.error(error);
+                alert('Müşteri eklenirken hata oluştu');
+            }
         }
 
-        function saveCustomerEdit() {
-            saveEdit();
+        async function saveCustomerEdit() {
+            const customerId = document.getElementById('editCustomerId').value;
+            const name = document.getElementById('editCustomerName').value.trim();
+            const phone = document.getElementById('editCustomerPhone').value.trim();
+            const email = document.getElementById('editCustomerEmail').value.trim();
+            const address = document.getElementById('editCustomerAddress').value.trim();
+            const note = document.getElementById('editCustomerNote').value.trim();
+
+            if (!name || !phone) {
+                alert('Lütfen ad ve telefon giriniz');
+                return;
+            }
+
+            try {
+                const now = new Date().toISOString();
+                const userProfile = (await getUserRef().get()).data();
+                const modifiedBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+
+                await getCustomersRef().doc(customerId).update({
+                    name,
+                    phone,
+                    email,
+                    address,
+                    note,
+                    lastModifiedBy: modifiedBy,
+                    activityLog: firebase.firestore.FieldValue.arrayUnion({
+                        action: 'edited',
+                        by: modifiedBy,
+                        timestamp: now
+                    })
+                });
+
+                showNotification('✅ Müşteri güncellendi');
+                closeEditCustomerModal();
+            } catch (error) {
+                console.error(error);
+                alert('Güncelleme başarısız');
+            }
         }
 
         function filterCustomersList() {
@@ -2790,15 +2891,13 @@
                 
                 const customer = doc.data();
                 document.getElementById('editCustomerId').value = customerId;
-                document.getElementById('editCustomerName').value = customer.name;
-                document.getElementById('editCustomerPhone').value = customer.phone;
-                document.getElementById('editPaymentType').value = customer.paymentType || '';
-                document.getElementById('editDueDate').value = customer.dueDate;
-                document.getElementById('editAmount').value = customer.amount;
-                document.getElementById('editNote').value = customer.note || '';
-                document.getElementById('editStatus').value = customer.status;
+                document.getElementById('editCustomerName').value = customer.name || '';
+                document.getElementById('editCustomerPhone').value = customer.phone || '';
+                document.getElementById('editCustomerEmail').value = customer.email || '';
+                document.getElementById('editCustomerAddress').value = customer.address || '';
+                document.getElementById('editCustomerNote').value = customer.note || '';
                 
-                document.getElementById('editModal').classList.add('show');
+                document.getElementById('editCustomerModal').classList.add('show');
             });
         }
 
