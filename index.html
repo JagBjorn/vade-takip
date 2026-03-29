@@ -657,6 +657,12 @@
             .btn {
                 font-size: 13px;
             }
+
+            /* LOGO MOBILE - Küçült */
+            #companyLogoImg {
+                height: 45px !important;
+                max-width: 140px !important;
+            }
         }
 
         @media (max-width: 480px) {
@@ -854,7 +860,7 @@
                     </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
-                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
+                        <input type="text" id="newCustomerName" placeholder="Ad Soyad / Şirket Adı">
                     </div>
                     <div class="form-group">
                         <label>Telefon *</label>
@@ -1181,7 +1187,7 @@
             
             <div class="form-group">
                 <label>Firma Adı *</label>
-                <input type="text" id="createCompanyName" placeholder="Orijin Akvaryum">
+                <input type="text" id="createCompanyName" placeholder="Şirket Adı">
             </div>
 
             <div class="form-group">
@@ -2774,9 +2780,9 @@
             
             if (logoData) {
                 logoImg.src = logoData;
-                logoHeader.style.display = 'block';
+                logoHeader.style.display = 'block'; // Inline style ile aç
             } else {
-                logoHeader.style.display = 'none';
+                logoHeader.style.display = 'none'; // Logo yoksa gizle
             }
         }
 
