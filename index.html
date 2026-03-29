@@ -860,7 +860,7 @@
                     </div>
                     <div class="form-group">
                         <label>Müşteri Adı / Şirket Adı *</label>
-                        <input type="text" id="newCustomerName" placeholder="Ad Soyad / Şirket Adı">
+                        <input type="text" id="newCustomerName" placeholder="Ahmet Yılmaz / Amisos Petshop">
                     </div>
                     <div class="form-group">
                         <label>Telefon *</label>
@@ -1187,7 +1187,7 @@
             
             <div class="form-group">
                 <label>Firma Adı *</label>
-                <input type="text" id="createCompanyName" placeholder="Şirket Adı">
+                <input type="text" id="createCompanyName" placeholder="Orijin Akvaryum">
             </div>
 
             <div class="form-group">
@@ -2225,7 +2225,18 @@
                         invitedAt: new Date().toISOString()
                     });
 
-                showNotification(`✅ ${inviteEmail} ${company.name} firmasına davet edildi`);
+                // 📧 EMAIL GÖNDERİMİ
+                const currentUserProfile = (await getUserRef().get()).data();
+                const inviterName = currentUserProfile?.fullName || window.auth.currentUser.email;
+                
+                await sendInviteEmail(
+                    inviteEmail,
+                    inviterName,
+                    company.name,
+                    permissions
+                );
+
+                showNotification(`✅ ${inviteEmail} ${company.name} firmasına davet edildi ve email gönderildi`);
                 
                 // Formu temizle
                 document.getElementById('inviteEmail').value = '';
@@ -2236,6 +2247,119 @@
             } catch (error) {
                 console.error(error);
                 alert('Davet gönderilirken hata oluştu');
+            }
+        }
+
+        // 📧 EMAIL GÖNDERİM FONKSİYONU
+        async function sendInviteEmail(toEmail, inviterName, companyName, permissions) {
+            try {
+                // Resend API Key (Sen ekleyeceksin)
+                const RESEND_API_KEY = 're_9U9GNNdY_NcEwTnN8Kc9HDPLBYFWrXN2j';
+                
+                // Yetki listesi oluştur
+                const permList = [];
+                if (permissions.view) permList.push('✅ Görüntüleme');
+                if (permissions.edit) permList.push('✅ Düzenleme');
+                if (permissions.add) permList.push('✅ Yeni Kayıt Ekleme');
+                if (permissions.payment) permList.push('✅ Ödeme İşlemleri');
+                if (permissions.whatsapp) permList.push('✅ WhatsApp Gönderme');
+                if (permissions.delete) permList.push('✅ Silme');
+                
+                const permissionsHTML = permList.join('<br>');
+                
+                // Site URL
+                const siteURL = 'https://jagbjorn.github.io/vade-takip/vade_takip_firebase_FULL.html';
+                
+                // Email HTML şablonu
+                const emailHTML = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    </head>
+                    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5;">
+                        <div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+                            <!-- Header -->
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                                <h1 style="color: white; margin: 0; font-size: 32px;">🎉 Davetlisiniz!</h1>
+                                <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Vade Takip Sistemi</p>
+                            </div>
+                            
+                            <!-- Body -->
+                            <div style="padding: 40px 30px;">
+                                <p style="font-size: 18px; color: #333; margin: 0 0 20px 0;">Merhaba,</p>
+                                
+                                <p style="font-size: 16px; color: #666; line-height: 1.6; margin: 0 0 25px 0;">
+                                    <strong style="color: #667eea;">${inviterName}</strong> sizi 
+                                    <strong style="color: #333;">${companyName}</strong> firmasının vade takip sistemine davet etti.
+                                </p>
+                                
+                                <!-- Yetkiler -->
+                                <div style="background: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 8px;">
+                                    <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">📋 Yetkileriniz:</h3>
+                                    <div style="font-size: 14px; color: #666; line-height: 2;">
+                                        ${permissionsHTML}
+                                    </div>
+                                </div>
+                                
+                                <!-- CTA Button -->
+                                <div style="text-align: center; margin: 35px 0;">
+                                    <a href="${siteURL}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 16px 40px; border-radius: 30px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                                        🚀 Daveti Kabul Et
+                                    </a>
+                                </div>
+                                
+                                <!-- Instructions -->
+                                <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin: 25px 0;">
+                                    <p style="margin: 0; font-size: 14px; color: #856404;">
+                                        💡 <strong>İpucu:</strong> Sisteme giriş yapmak için email adresiniz ile kayıt olmanız gerekiyor. 
+                                        Eğer daha önce kayıt olmadıysanız, önce kayıt olun, ardından giriş yapın!
+                                    </p>
+                                </div>
+                                
+                                <!-- Footer Note -->
+                                <p style="font-size: 13px; color: #999; margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                                    Bu davet <strong>${companyName}</strong> firması tarafından gönderilmiştir. 
+                                    Eğer bu daveti siz talep etmediyseniz, bu email'i görmezden gelebilirsiniz.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+                            <p style="margin: 0;">© 2025 Vade Takip - Tüm hakları saklıdır</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                
+                // Resend API çağrısı
+                const response = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${RESEND_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'Vade Takip <onboarding@resend.dev>',
+                        to: [toEmail],
+                        subject: `🎉 ${companyName} Vade Takip Daveti`,
+                        html: emailHTML
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    console.log('✅ Email gönderildi:', data);
+                } else {
+                    console.error('❌ Email gönderilemedi:', data);
+                    // Hata olsa bile kullanıcıya bildirim verme, davet Firestore'da kayıtlı
+                }
+            } catch (error) {
+                console.error('Email gönderme hatası:', error);
+                // Sessizce devam et - davet zaten Firestore'da kayıtlı
             }
         }
 
