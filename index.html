@@ -1480,6 +1480,8 @@
             const address = document.getElementById('editCustomerAddress').value.trim();
             const note = document.getElementById('editCustomerNote').value.trim();
 
+            console.log('saveCustomerEdit called with:', { customerId, name, phone, email, address, note });
+
             if (!name || !phone) {
                 alert('Lütfen ad ve telefon giriniz');
                 return;
@@ -1506,15 +1508,20 @@
                 const oldName = oldData.name;
                 const oldPhone = oldData.phone;
 
+                console.log('Old data:', { oldName, oldPhone });
+
                 // AYNI MÜŞTERİNİN TÜM KAYITLARINI GÜNCELLE
                 const allCustomerRecords = await getCustomersRef()
                     .where('name', '==', oldName)
                     .where('phone', '==', oldPhone)
                     .get();
 
+                console.log('Found', allCustomerRecords.size, 'records to update');
+
                 const batch = window.db.batch();
 
                 allCustomerRecords.forEach(doc => {
+                    console.log('Updating record:', doc.id);
                     batch.update(doc.ref, {
                         name,
                         phone,
@@ -1531,14 +1538,21 @@
                 });
 
                 await batch.commit();
+                console.log('Batch committed successfully');
 
                 showNotification('✅ Müşteri bilgileri güncellendi');
                 closeEditCustomerModal();
                 
-                // Listeyi yenile
+                // FORCE REFRESH - TÜM LİSTELERİ YENİLE
+                console.log('Force refreshing all lists...');
                 await loadAllCustomersForSearch();
+                
+                // Dashboard'ı da yenile
+                await updateDashboard();
+                
+                console.log('All lists refreshed');
             } catch (error) {
-                console.error(error);
+                console.error('saveCustomerEdit error:', error);
                 alert('Güncelleme başarısız: ' + error.message);
             }
         }
@@ -3294,10 +3308,19 @@
         }
 
         function openEditModal(customerId) {
+            console.log('openEditModal called with ID:', customerId);
+            
             getCustomersRef().doc(customerId).get().then(doc => {
-                if (!doc.exists) return;
+                if (!doc.exists) {
+                    console.error('Customer not found:', customerId);
+                    alert('Müşteri bulunamadı!');
+                    return;
+                }
                 
                 const customer = doc.data();
+                console.log('Customer data:', customer);
+                
+                // Form alanlarını doldur
                 document.getElementById('editCustomerId').value = customerId;
                 document.getElementById('editCustomerName').value = customer.name || '';
                 document.getElementById('editCustomerPhone').value = customer.phone || '';
@@ -3305,7 +3328,18 @@
                 document.getElementById('editCustomerAddress').value = customer.address || '';
                 document.getElementById('editCustomerNote').value = customer.note || '';
                 
+                console.log('Form filled with:', {
+                    name: customer.name,
+                    phone: customer.phone,
+                    email: customer.email,
+                    address: customer.address,
+                    note: customer.note
+                });
+                
                 document.getElementById('editCustomerModal').classList.add('show');
+            }).catch(error => {
+                console.error('Error loading customer:', error);
+                alert('Müşteri yüklenirken hata oluştu: ' + error.message);
             });
         }
 
