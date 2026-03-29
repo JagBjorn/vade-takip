@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Vade Takip">
     <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Ödeme takip ve müşteri yönetim sistemi">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23667eea' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle'>💼</text></svg>">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlZhZGUgVGFraXAiLAogICJzaG9ydF9uYW1lIjogIlZhZGUgVGFraXAiLAogICJkZXNjcmlwdGlvbiI6ICLDlmRlbWUgdGFraXAgdmUgbcO8xZ90ZXJpIHnDtm5ldGltIHNpc3RlbWkiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzY2N2VlYSIsCiAgInRoZW1lX2NvbG9yIjogIiM2NjdlZWEiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnPjxyZWN0IHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJyBmaWxsPSclMjM2NjdlZWEnIHJ4PScyMCcvPjx0ZXh0IHg9JzUwJyB5PSc2NScgZm9udC1zaXplPSc1MCcgdGV4dC1hbmNob3I9J21pZGRsZSc+8J+SvDwvdGV4dD48L3N2Zz4iLAogICAgInNpemVzIjogIjUxMng1MTIiLAogICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICB9XQp9">
     <title>Vade Takip Sistemi</title>
     <style>
         #loadingOverlay {
@@ -271,6 +274,12 @@
 
         .btn-whatsapp:hover {
             background: #20BA5A;
+        }
+
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 6px;
         }
 
         .customer-list {
@@ -777,6 +786,18 @@
                         <div class="stat-value" id="paidCount">0</div>
                         <div class="stat-label">Ödenen İşlem</div>
                     </div>
+                </div>
+
+                <!-- BUGÜN VADESİ GELENLER - ACİL BANNER -->
+                <div id="todayPaymentsBanner" style="display: none; margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border-radius: 15px; border-left: 6px solid #c92a2a; box-shadow: 0 4px 15px rgba(255,107,107,0.3);">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <div style="font-size: 48px;">🔔</div>
+                        <div style="flex: 1;">
+                            <h2 style="color: white; margin: 0; font-size: 24px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Bugün Vadesi Gelen Ödemeler</h2>
+                            <p style="color: rgba(255,255,255,0.95); margin: 5px 0 0 0; font-size: 16px;">⚠️ Bugün <strong id="todayPaymentsCount" style="font-size: 20px; color: #fff;">0</strong> ödemenin vadesi doluyor!</p>
+                        </div>
+                    </div>
+                    <div id="todayPaymentsList" style="background: rgba(255,255,255,0.95); border-radius: 10px; padding: 15px; max-height: 400px; overflow-y: auto;"></div>
                 </div>
 
                 <div class="today-reminders-card">
@@ -1356,7 +1377,7 @@
 
         // Alias functions for onclick handlers
         async function saveNewCustomer() {
-            // Modal'dan müşteri ekle
+            // Modal'dan müşteri ekle - SADECE MÜŞTERİ BİLGİSİ (ÖDEME OLMADAN)
             const name = document.getElementById('modalCustomerName').value.trim();
             const phone = document.getElementById('modalCustomerPhone').value.trim();
             const email = document.getElementById('modalCustomerEmail').value.trim();
@@ -1389,22 +1410,24 @@
                     timestamp: now
                 };
 
+                // SADECE MÜŞTERİ BİLGİSİ - Ödeme bilgisi YOK
                 await getCustomersRef().add({
                     name,
                     phone,
-                    email,
-                    address,
-                    note,
+                    email: email || '',
+                    address: address || '',
+                    note: note || '',
+                    isCustomerOnly: true, // Bu sadece müşteri kaydı, ödeme değil
                     dueDate: null,
                     amount: 0,
-                    paymentType: 'Manuel',
-                    status: 'pending',
+                    paymentType: '',
+                    status: 'no_payment',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     createdBy: createdBy,
                     lastModifiedBy: createdBy,
                     paidDate: null,
                     activityLog: [{
-                        action: 'created',
+                        action: 'customer_created',
                         by: createdBy,
                         timestamp: now
                     }]
@@ -1453,25 +1476,51 @@
                     timestamp: now
                 };
 
-                await getCustomersRef().doc(customerId).update({
-                    name,
-                    phone,
-                    email,
-                    address,
-                    note,
-                    lastModifiedBy: modifiedBy,
-                    activityLog: firebase.firestore.FieldValue.arrayUnion({
-                        action: 'edited',
-                        by: modifiedBy,
-                        timestamp: now
-                    })
+                // İlk önce bu kaydın eski bilgilerini alalım
+                const customerDoc = await getCustomersRef().doc(customerId).get();
+                if (!customerDoc.exists) {
+                    alert('Müşteri bulunamadı');
+                    return;
+                }
+
+                const oldData = customerDoc.data();
+                const oldName = oldData.name;
+                const oldPhone = oldData.phone;
+
+                // AYNI MÜŞTERİNİN TÜM KAYITLARINI GÜNCELLE
+                const allCustomerRecords = await getCustomersRef()
+                    .where('name', '==', oldName)
+                    .where('phone', '==', oldPhone)
+                    .get();
+
+                const batch = window.db.batch();
+
+                allCustomerRecords.forEach(doc => {
+                    batch.update(doc.ref, {
+                        name,
+                        phone,
+                        email: email || '',
+                        address: address || '',
+                        note: note || '',
+                        lastModifiedBy: modifiedBy,
+                        activityLog: firebase.firestore.FieldValue.arrayUnion({
+                            action: 'customer_info_updated',
+                            by: modifiedBy,
+                            timestamp: now
+                        })
+                    });
                 });
 
-                showNotification('✅ Müşteri güncellendi');
+                await batch.commit();
+
+                showNotification('✅ Müşteri bilgileri güncellendi');
                 closeEditCustomerModal();
+                
+                // Listeyi yenile
+                await loadAllCustomersForSearch();
             } catch (error) {
                 console.error(error);
-                alert('Güncelleme başarısız');
+                alert('Güncelleme başarısız: ' + error.message);
             }
         }
 
@@ -1619,6 +1668,12 @@
 
         // Auth State Observer
         window.auth.onAuthStateChanged(async user => {
+            // Loading overlay'ı gizle
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+
             if (user) {
                 currentUser = user;
                 document.getElementById('authScreen').style.display = 'none';
@@ -1637,6 +1692,27 @@
         });
 
         } // End initializeFirebase
+
+        // Visibility Change Listener - Sayfa aktif olduğunda kontrol et
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && currentUser && selectedCompanyId) {
+                // Sayfa görünür hale geldiğinde verileri yenile
+                console.log('Page visible, checking for updates...');
+                // Bildirim scheduler'ı yeniden başlat
+                if (notificationInterval) {
+                    clearInterval(notificationInterval);
+                    startNotificationScheduler();
+                }
+            }
+        });
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log('PWA install prompt ready');
+        });
 
         // Cleanup Listeners - GLOBAL
         function cleanupListeners() {
@@ -2339,6 +2415,7 @@
             if (allCompaniesList.length === 0) {
                 container.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">Henüz firma eklenmemiş</div>';
                 document.getElementById('selectedCompanyName').textContent = 'Firma Seçin';
+                updateHeader('');
                 return;
             }
 
@@ -2346,6 +2423,8 @@
             const selectedCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
             if (selectedCompany) {
                 document.getElementById('selectedCompanyName').textContent = selectedCompany.name;
+                // Header'ı da güncelle
+                updateHeader(selectedCompany.name);
             }
 
             container.innerHTML = allCompaniesList.map(company => {
@@ -2376,6 +2455,8 @@
             const company = allCompaniesList.find(c => c.id === companyId);
             if (company) {
                 document.getElementById('selectedCompanyName').textContent = company.name;
+                // Header'ı hemen güncelle (loadSettings beklemeden)
+                updateHeader(company.name);
             }
 
             toggleCompanyDropdown();
@@ -2909,16 +2990,19 @@
         function renderCustomers(customers) {
             const container = document.getElementById('customerList');
             
-            if (customers.length === 0) {
+            // Sadece gerçek ödemeleri filtrele (isCustomerOnly olmayan)
+            const paymentsOnly = customers.filter(c => !c.isCustomerOnly && c.status !== 'no_payment');
+            
+            if (paymentsOnly.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #666;">Henüz ödeme eklenmemiş</p>';
                 return;
             }
 
-            customers.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            paymentsOnly.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
             // Müşteri bazlı toplam hesapla
             const customerTotals = {};
-            customers.forEach(c => {
+            paymentsOnly.forEach(c => {
                 if (!customerTotals[c.name]) {
                     customerTotals[c.name] = {
                         totalPaid: 0,
@@ -2934,7 +3018,7 @@
                 }
             });
 
-            container.innerHTML = customers.map(customer => {
+            container.innerHTML = paymentsOnly.map(customer => {
                 const daysLeft = getDaysUntilDue(customer.dueDate);
                 let cardClass = 'customer-card';
                 let statusBadge = '';
@@ -3441,11 +3525,130 @@
                 document.getElementById('pendingAmount').textContent = pendingAmount.toLocaleString('tr-TR') + '₺';
                 document.getElementById('paidCount').textContent = paidCount;
 
+                // BUGÜN VADESİ GELENLER
+                renderTodayPaymentsBanner(customers);
+                
+                // PWA BADGE GÜNCELLE
+                updatePWABadge(customers);
+
                 renderTodayReminders(customers);
                 renderTopCustomers(customers);
             } catch (error) {
                 console.error('updateDashboard error:', error);
             }
+        }
+
+        function renderTodayPaymentsBanner(customers) {
+            const banner = document.getElementById('todayPaymentsBanner');
+            const countEl = document.getElementById('todayPaymentsCount');
+            const listEl = document.getElementById('todayPaymentsList');
+
+            // Bugün vadesi gelenler (sadece gerçek ödemeler)
+            const todayPayments = customers.filter(c => {
+                if (c.isCustomerOnly || c.status === 'no_payment' || c.status === 'paid') return false;
+                const daysLeft = getDaysUntilDue(c.dueDate);
+                return daysLeft === 0;
+            });
+
+            if (todayPayments.length === 0) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            banner.style.display = 'block';
+            countEl.textContent = todayPayments.length;
+
+            // Toplam tutar hesapla
+            const totalAmount = todayPayments.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+
+            listEl.innerHTML = `
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+                    <strong style="color: #856404; font-size: 16px;">💰 Toplam Tutar: ${totalAmount.toLocaleString('tr-TR')} ₺</strong>
+                </div>
+                ${todayPayments.map(payment => `
+                    <div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #dc3545; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 16px; color: #212529;">${payment.name}</strong>
+                                <div style="color: #6c757d; font-size: 13px; margin-top: 4px;">📱 ${payment.phone}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 18px; font-weight: 700; color: #dc3545;">${parseFloat(payment.amount).toLocaleString('tr-TR')} ₺</div>
+                                <div style="font-size: 12px; color: #6c757d; margin-top: 4px;">${payment.paymentType || 'Manuel'}</div>
+                            </div>
+                        </div>
+                        ${payment.note ? `<div style="color: #6c757d; font-size: 13px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e9ecef;">📝 ${payment.note}</div>` : ''}
+                        <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-success btn-small" onclick="markAsPaid('${payment.id}')" style="flex: 1; min-width: 120px;">✓ Ödendi</button>
+                            <button class="btn btn-whatsapp btn-small" onclick="sendWhatsApp('${payment.phone}', '${payment.name}', ${payment.amount}, '${payment.dueDate}')" style="flex: 1; min-width: 120px;">💬 WhatsApp</button>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        function updatePWABadge(customers) {
+            // Bugün + gecikmiş ödemeleri say
+            const criticalPayments = customers.filter(c => {
+                if (c.isCustomerOnly || c.status === 'no_payment' || c.status === 'paid') return false;
+                const daysLeft = getDaysUntilDue(c.dueDate);
+                return daysLeft <= 0; // Bugün veya geçmiş
+            });
+
+            const badgeCount = criticalPayments.length;
+
+            // PWA Badge API (Chrome, Edge, Samsung Internet)
+            if ('setAppBadge' in navigator) {
+                if (badgeCount > 0) {
+                    navigator.setAppBadge(badgeCount).catch(err => {
+                        console.log('Badge API not supported:', err);
+                    });
+                } else {
+                    navigator.clearAppBadge().catch(err => {
+                        console.log('Badge API not supported:', err);
+                    });
+                }
+            }
+
+            // Alternatif: Favicon badge (tüm tarayıcılar)
+            updateFaviconBadge(badgeCount);
+        }
+
+        function updateFaviconBadge(count) {
+            // Favicon'a badge ekle
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+
+            // Arka plan
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(0, 0, 32, 32);
+
+            // Emoji
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💼', 16, 16);
+
+            // Badge (eğer sayı varsa)
+            if (count > 0) {
+                ctx.fillStyle = '#dc3545';
+                ctx.beginPath();
+                ctx.arc(24, 8, 8, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 10px Arial';
+                ctx.fillText(count > 9 ? '9+' : count, 24, 8);
+            }
+
+            // Favicon güncelle
+            const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+            link.type = 'image/x-icon';
+            link.rel = 'shortcut icon';
+            link.href = canvas.toDataURL();
+            document.getElementsByTagName('head')[0].appendChild(link);
         }
 
         function renderTopCustomers(payments) {
@@ -3851,12 +4054,19 @@
 
         function sendPushNotification(title, body, tag) {
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(title, {
-                    body,
-                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23667eea" rx="20"/><text x="50" y="65" font-size="50" text-anchor="middle">💼</text></svg>',
-                    tag,
-                    requireInteraction: false
-                });
+                try {
+                    new Notification(title, {
+                        body,
+                        icon: '/favicon.ico',
+                        tag,
+                        requireInteraction: false,
+                        badge: '/favicon.ico'
+                    });
+                } catch (error) {
+                    console.error('Notification error:', error);
+                    // Fallback - basit bildirim
+                    new Notification(title, { body });
+                }
             }
         }
 
