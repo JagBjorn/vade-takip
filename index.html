@@ -1800,7 +1800,8 @@ Atlaspet Pet Products</textarea>
         let allPaymentsList = [];
         
         // Company Management Variables
-        let selectedCompanyId = null;
+        // DEPRECATED: selectedCompanyId artık kullanılmıyor, currentCompanyId kullanılıyor
+        // let selectedCompanyId = null;
         let allCompaniesList = [];
         let companiesListener = null;
 
@@ -2125,8 +2126,20 @@ Atlaspet Pet Products</textarea>
             }
 
             try {
+                // Firma kontrolü
+                if (!currentCompanyId) {
+                    alert('❌ Firma seçilmemiş! Lütfen ayarlardan bir firma seçin.');
+                    return;
+                }
+
+                const customersRef = getCustomersRef();
+                if (!customersRef) {
+                    alert('❌ Veritabanı bağlantısı yok!');
+                    return;
+                }
+
                 // MÜŞTERI TEKRAR KONTROLÜ
-                const existingCustomers = await getCustomersRef()
+                const existingCustomers = await customersRef
                     .where('name', '==', name)
                     .where('phone', '==', phone)
                     .get();
@@ -2146,7 +2159,7 @@ Atlaspet Pet Products</textarea>
                 };
 
                 // SADECE MÜŞTERİ BİLGİSİ - Ödeme bilgisi YOK
-                await getCustomersRef().add({
+                await customersRef.add({
                     name,
                     phone,
                     email: email || '',
@@ -2171,13 +2184,16 @@ Atlaspet Pet Products</textarea>
                 });
 
                 showNotification('✅ Müşteri eklendi');
+                closeAddCustomerModal();
                 
-                // Formu temizle
-                document.getElementById('modalCustomerName').value = '';
-                document.getElementById('modalCustomerPhone').value = '';
-                document.getElementById('modalCustomerEmail').value = '';
-                document.getElementById('modalCustomerAddress').value = '';
-                document.getElementById('modalCustomerNote').value = '';
+                // Listeyi yenile
+                loadAndRenderCustomers();
+                
+            } catch (error) {
+                console.error('Müşteri ekleme hatası:', error);
+                alert('❌ Müşteri eklenemedi: ' + error.message);
+            }
+        }
                 
                 // Modal'ı kapat
                 closeAddCustomerModal();
@@ -4294,11 +4310,23 @@ Atlaspet Pet Products</textarea>
             const note = document.getElementById('note').value.trim();
 
             if (!name || !phone || !dueDate || !amount) {
-                alert('Lütfen zorunlu alanları doldurun');
+                alert('❌ Lütfen zorunlu alanları doldurun');
                 return;
             }
 
             try {
+                // Firma kontrolü
+                if (!currentCompanyId) {
+                    alert('❌ Firma seçilmemiş! Lütfen ayarlardan bir firma seçin.');
+                    return;
+                }
+
+                const customersRef = getCustomersRef();
+                if (!customersRef) {
+                    alert('❌ Veritabanı bağlantısı yok!');
+                    return;
+                }
+
                 const now = new Date().toISOString();
                 const userProfile = (await getUserRef().get()).data();
                 const createdBy = {
@@ -4308,7 +4336,7 @@ Atlaspet Pet Products</textarea>
                     timestamp: now
                 };
 
-                await getCustomersRef().add({
+                await customersRef.add({
                     name,
                     phone,
                     dueDate,
@@ -4327,7 +4355,7 @@ Atlaspet Pet Products</textarea>
                     }]
                 });
 
-                showNotification('✅ Müşteri eklendi');
+                showNotification('✅ Ödeme eklendi');
                 document.getElementById('customerName').value = '';
                 document.getElementById('customerPhone').value = '';
                 document.getElementById('dueDate').value = '';
@@ -4339,22 +4367,22 @@ Atlaspet Pet Products</textarea>
                     btn.classList.remove('active');
                 });
             } catch (error) {
-                console.error(error);
-                alert('Müşteri eklenirken hata oluştu');
+                console.error('Ödeme ekleme hatası:', error);
+                alert('❌ Ödeme eklenirken hata oluştu: ' + error.message);
             }
         }
 
         function loadCustomers() {
             if (customersListener) customersListener();
             
-            if (!selectedCompanyId) {
-                console.log('No company selected, skipping loadCustomers');
+            if (!currentCompanyId) {
+                console.log('⚠️ No company selected, skipping loadCustomers');
                 return;
             }
             
             const customersRef = getCustomersRef();
             if (!customersRef) {
-                console.log('customersRef is null');
+                console.log('❌ customersRef is null');
                 return;
             }
             
@@ -4364,11 +4392,12 @@ Atlaspet Pet Products</textarea>
                     customers.push({ id: doc.id, ...doc.data() });
                 });
 
+                console.log(`✅ Loaded ${customers.length} records`);
                 renderCustomers(customers); // Ödemeler sekmesi
                 renderCustomersOnly(customers); // Müşteriler sekmesi
                 updateDashboard();
             }, error => {
-                console.error('Customers listener error:', error);
+                console.error('❌ Customers listener error:', error);
                 document.getElementById('customerList').innerHTML = '<p style="color: red;">Veri yüklenirken hata oluştu</p>';
             });
         }
