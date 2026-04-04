@@ -5391,6 +5391,24 @@
             return Math.ceil(diff / (1000 * 60 * 60 * 24));
         }
 
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '-';
+                
+                return date.toLocaleDateString('tr-TR', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                });
+            } catch (error) {
+                console.error('formatDate error:', error);
+                return '-';
+            }
+        }
+
         function showTab(tabName) {
             document.querySelectorAll('.content').forEach(content => {
                 content.style.display = 'none';
