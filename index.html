@@ -836,8 +836,9 @@
                 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button class="btn" onclick="openAddCustomerModal()" style="flex: 1; min-width: 200px;">➕ Yeni Müşteri Ekle</button>
-                    <button class="btn btn-secondary" onclick="expandAllCustomers()" style="flex: 1; min-width: 200px;">📂 Tümünü Aç</button>
-                    <button class="btn btn-secondary" onclick="collapseAllCustomers()" style="flex: 1; min-width: 200px;">📁 Tümünü Kapat</button>
+                    <button class="btn" onclick="openBulkCustomerModal()" style="flex: 1; min-width: 200px; background: #667eea;">📊 Excel'den Toplu Müşteri Ekle</button>
+                    <button class="btn btn-secondary" onclick="expandAllCustomers()" style="flex: 1; min-width: 150px;">📂 Tümünü Aç</button>
+                    <button class="btn btn-secondary" onclick="collapseAllCustomers()" style="flex: 1; min-width: 150px;">📁 Tümünü Kapat</button>
                 </div>
 
                 <div class="search-box" style="margin-bottom: 15px;">
@@ -1282,6 +1283,28 @@
                 <textarea id="modalCustomerNote" placeholder="Müşteri hakkında notlar..."></textarea>
             </div>
 
+            <div style="border-top: 2px solid #e0e0e0; margin: 20px 0; padding-top: 20px;">
+                <h4 style="margin-bottom: 15px; color: #667eea;">💳 Varsayılan Ödeme Profili</h4>
+                
+                <div class="form-group">
+                    <label>Ödeme Şekli</label>
+                    <select id="modalDefaultPaymentType" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                        <option value="">Seçiniz...</option>
+                        <option value="Kredi Kartı Taksit">Kredi Kartı Taksitli</option>
+                        <option value="Kredi Kartı Tek Çekim">Kredi Kartı Tek Çekim</option>
+                        <option value="Havale/EFT">Havale/EFT</option>
+                        <option value="Nakit">Nakit</option>
+                        <option value="Çek">Çek</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Varsayılan Vade Günü</label>
+                    <input type="number" id="modalDefaultDueDays" placeholder="10" min="0" max="365" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                    <small style="color: #666; font-size: 12px;">Fatura tarihine eklenecek gün sayısı (örn: 10 gün sonra)</small>
+                </div>
+            </div>
+
             <button class="btn" onclick="saveNewCustomer()">💾 Müşteri Kaydet</button>
         </div>
     </div>
@@ -1406,6 +1429,126 @@
         </div>
     </div>
 
+    <!-- Edit Payment Modal -->
+    <div id="editPaymentModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">✏️ Ödeme Düzenle</h3>
+                <button class="close-modal" onclick="closeEditPaymentModal()">×</button>
+            </div>
+            
+            <input type="hidden" id="editPaymentId">
+            
+            <div class="form-group">
+                <label>Müşteri Adı</label>
+                <input type="text" id="editPaymentCustomerName" readonly style="background: #f5f5f5; cursor: not-allowed;">
+                <small style="color: #666; font-size: 12px;">Müşteri adını değiştirmek için "Müşteri Bilgilerini Düzenle" kullanın</small>
+            </div>
+
+            <div class="form-group">
+                <label>Telefon</label>
+                <input type="tel" id="editPaymentPhone" readonly style="background: #f5f5f5; cursor: not-allowed;">
+            </div>
+
+            <div class="form-group">
+                <label>Tutar (₺) *</label>
+                <input type="number" id="editPaymentAmount" placeholder="15753" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label>Vade Tarihi *</label>
+                <input type="date" id="editPaymentDueDate">
+            </div>
+
+            <div class="form-group">
+                <label>Ödeme Şekli</label>
+                <select id="editPaymentType">
+                    <option value="">Seçiniz...</option>
+                    <option value="Kredi Kartı Taksit">Kredi Kartı Taksitli</option>
+                    <option value="Kredi Kartı Tek Çekim">Kredi Kartı Tek Çekim</option>
+                    <option value="Havale/EFT">Havale/EFT</option>
+                    <option value="Nakit">Nakit</option>
+                    <option value="Çek">Çek</option>
+                    <option value="Senet">Senet</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Evrak No</label>
+                <input type="text" id="editPaymentDocNo" placeholder="B2B-30813">
+            </div>
+
+            <div class="form-group">
+                <label>Not</label>
+                <textarea id="editPaymentNote" placeholder="Ödeme hakkında notlar..." rows="3"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" onclick="savePaymentEdit()" style="flex: 1;">💾 Kaydet</button>
+                <button class="btn btn-secondary" onclick="closeEditPaymentModal()" style="flex: 1;">❌ İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Customer Import Modal -->
+    <div id="bulkCustomerModal" class="modal">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 class="modal-title">📊 Excel'den Toplu Müşteri Ekle</h3>
+                <button class="close-modal" onclick="closeBulkCustomerModal()">×</button>
+            </div>
+            
+            <!-- Dosya Yükleme -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">1️⃣ Excel Dosyası Seçin</h4>
+                <input type="file" id="bulkCustomerFile" accept=".xlsx,.xls,.csv" onchange="handleBulkCustomerFile()" style="margin-bottom: 10px;">
+                <p style="font-size: 13px; color: #666; margin: 0;">
+                    Excel'de şu sütunlar olmalı:<br>
+                    <strong>Müşteri Adı</strong>, <strong>Telefon</strong>, E-posta, Adres, Ödeme Şekli, Vade Gün, Not
+                </p>
+            </div>
+
+            <!-- Önizleme -->
+            <div id="bulkCustomerPreview" style="display: none;">
+                <h4 style="margin-bottom: 15px;">2️⃣ Müşteri Listesi Önizleme</h4>
+                
+                <!-- Özet -->
+                <div id="bulkCustomerSummary" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;"></div>
+                
+                <!-- Tablo -->
+                <div style="overflow-x: auto; max-height: 400px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead style="position: sticky; top: 0; background: #667eea; color: white;">
+                            <tr>
+                                <th style="padding: 12px; text-align: left; width: 50px;">
+                                    <input type="checkbox" id="bulkCustomerSelectAll" onchange="toggleAllCustomerSelection()" style="width: 18px; height: 18px; cursor: pointer;">
+                                </th>
+                                <th style="padding: 12px; text-align: left;">Durum</th>
+                                <th style="padding: 12px; text-align: left;">Müşteri Adı</th>
+                                <th style="padding: 12px; text-align: left;">Telefon</th>
+                                <th style="padding: 12px; text-align: left;">E-posta</th>
+                                <th style="padding: 12px; text-align: left;">Ödeme Şekli</th>
+                                <th style="padding: 12px; text-align: left;">Vade Gün</th>
+                                <th style="padding: 12px; text-align: left;">Not</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkCustomerTableBody"></tbody>
+                    </table>
+                </div>
+                
+                <!-- Aksiyon Butonları -->
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button class="btn" onclick="importBulkCustomers()" style="flex: 1; background: #28a745;">
+                        ✅ Seçilenleri Kaydet
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeBulkCustomerModal()" style="flex: 1;">
+                        ❌ İptal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Customer Detail Modal -->
     <div id="customerDetailModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
@@ -1447,10 +1590,121 @@
 
         function closeAddCustomerModal() {
             document.getElementById('addCustomerModal').classList.remove('show');
+            // Form'u temizle
+            document.getElementById('modalCustomerName').value = '';
+            document.getElementById('modalCustomerPhone').value = '';
+            document.getElementById('modalCustomerEmail').value = '';
+            document.getElementById('modalCustomerAddress').value = '';
+            document.getElementById('modalCustomerNote').value = '';
+            document.getElementById('modalDefaultPaymentType').value = '';
+            document.getElementById('modalDefaultDueDays').value = '';
         }
 
         function closeCustomerDetailModal() {
             document.getElementById('customerDetailModal').classList.remove('show');
+        }
+
+        function closeEditCustomerModal() {
+            document.getElementById('editCustomerModal').classList.remove('show');
+        }
+
+        function openEditPaymentModal(paymentId) {
+            console.log('📝 Opening payment edit modal for:', paymentId);
+            
+            getCustomersRef().doc(paymentId).get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        alert('❌ Ödeme bulunamadı!');
+                        return;
+                    }
+                    
+                    const payment = doc.data();
+                    console.log('Payment data:', payment);
+                    
+                    // Modal'ı aç
+                    document.getElementById('editPaymentModal').classList.add('show');
+                    
+                    // Form'u doldur
+                    setTimeout(() => {
+                        document.getElementById('editPaymentId').value = paymentId;
+                        document.getElementById('editPaymentCustomerName').value = payment.name || '';
+                        document.getElementById('editPaymentPhone').value = payment.phone || '';
+                        document.getElementById('editPaymentAmount').value = payment.amount || '';
+                        document.getElementById('editPaymentDueDate').value = payment.dueDate ? payment.dueDate.split('T')[0] : '';
+                        document.getElementById('editPaymentType').value = payment.paymentType || '';
+                        document.getElementById('editPaymentDocNo').value = payment.docNo || '';
+                        document.getElementById('editPaymentNote').value = payment.note || '';
+                        
+                        console.log('✅ Payment form filled');
+                    }, 100);
+                })
+                .catch(error => {
+                    console.error('Error loading payment:', error);
+                    alert('❌ Ödeme yüklenirken hata: ' + error.message);
+                });
+        }
+
+        function closeEditPaymentModal() {
+            document.getElementById('editPaymentModal').classList.remove('show');
+        }
+
+        async function savePaymentEdit() {
+            const paymentId = document.getElementById('editPaymentId').value;
+            const amount = parseFloat(document.getElementById('editPaymentAmount').value);
+            const dueDate = document.getElementById('editPaymentDueDate').value;
+            const paymentType = document.getElementById('editPaymentType').value;
+            const docNo = document.getElementById('editPaymentDocNo').value.trim();
+            const note = document.getElementById('editPaymentNote').value.trim();
+
+            console.log('💾 Saving payment edit:', { paymentId, amount, dueDate, paymentType });
+
+            if (!amount || amount <= 0) {
+                alert('❌ Lütfen geçerli bir tutar girin!');
+                return;
+            }
+
+            if (!dueDate) {
+                alert('❌ Lütfen vade tarihi seçin!');
+                return;
+            }
+
+            try {
+                const now = new Date().toISOString();
+                const userProfile = (await getUserRef().get()).data();
+                const modifiedBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+
+                await getCustomersRef().doc(paymentId).update({
+                    amount,
+                    dueDate: new Date(dueDate).toISOString(),
+                    paymentType: paymentType || '',
+                    docNo: docNo || '',
+                    note: note || '',
+                    lastModifiedBy: modifiedBy,
+                    activityLog: firebase.firestore.FieldValue.arrayUnion({
+                        action: 'payment_edited',
+                        changes: `Tutar: ${amount}₺, Vade: ${dueDate}, Tip: ${paymentType}`,
+                        by: modifiedBy,
+                        timestamp: now
+                    })
+                });
+
+                console.log('✅ Payment updated successfully');
+                showNotification('✅ Ödeme güncellendi');
+                closeEditPaymentModal();
+                
+                // Refresh
+                await loadAndRenderCustomers();
+                await updateDashboard();
+
+            } catch (error) {
+                console.error('Save payment edit error:', error);
+                alert('❌ Güncelleme başarısız: ' + error.message);
+            }
         }
 
         function closeEditCustomerModal() {
@@ -1641,9 +1895,11 @@
             const email = document.getElementById('modalCustomerEmail').value.trim();
             const address = document.getElementById('modalCustomerAddress').value.trim();
             const note = document.getElementById('modalCustomerNote').value.trim();
+            const defaultPaymentType = document.getElementById('modalDefaultPaymentType').value;
+            const defaultDueDays = parseInt(document.getElementById('modalDefaultDueDays').value) || 0;
 
             if (!name || !phone) {
-                alert('Lütfen ad ve telefon giriniz');
+                alert('❌ Lütfen ad ve telefon giriniz');
                 return;
             }
 
@@ -1675,6 +1931,8 @@
                     email: email || '',
                     address: address || '',
                     note: note || '',
+                    defaultPaymentType: defaultPaymentType || '',
+                    defaultDueDays: defaultDueDays,
                     isCustomerOnly: true, // Bu sadece müşteri kaydı, ödeme değil
                     dueDate: null,
                     amount: 0,
@@ -5492,6 +5750,346 @@
                 closePermissionsModal();
             }
         });
+        // BULK CUSTOMER IMPORT FUNCTIONS
+        let bulkCustomerData = [];
+        let bulkCustomerColumns = {};
+        let selectedBulkCustomers = new Set();
+
+        function openBulkCustomerModal() {
+            document.getElementById('bulkCustomerModal').classList.add('show');
+            document.getElementById('bulkCustomerFile').value = '';
+            document.getElementById('bulkCustomerPreview').style.display = 'none';
+            bulkCustomerData = [];
+            selectedBulkCustomers.clear();
+        }
+
+        function closeBulkCustomerModal() {
+            document.getElementById('bulkCustomerModal').classList.remove('show');
+        }
+
+        async function handleBulkCustomerFile() {
+            const fileInput = document.getElementById('bulkCustomerFile');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            try {
+                showNotification('📂 Excel dosyası okunuyor...');
+                
+                // SheetJS yükle
+                if (typeof XLSX === 'undefined') {
+                    await loadSheetJS();
+                }
+
+                const reader = new FileReader();
+                
+                reader.onload = async function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        
+                        console.log('📊 Excel data:', jsonData);
+                        
+                        if (jsonData.length === 0) {
+                            alert('❌ Excel dosyası boş!');
+                            return;
+                        }
+
+                        // Sütunları algıla
+                        detectBulkCustomerColumns(Object.keys(jsonData[0]));
+                        
+                        // Verileri hazırla
+                        await prepareBulkCustomerData(jsonData);
+                        
+                        // Önizleme göster
+                        renderBulkCustomerPreview();
+                        
+                    } catch (error) {
+                        console.error('Excel parse error:', error);
+                        alert('❌ Excel dosyası okunamadı: ' + error.message);
+                    }
+                };
+                
+                reader.readAsArrayBuffer(file);
+                
+            } catch (error) {
+                console.error('File handling error:', error);
+                alert('❌ Dosya yüklenirken hata: ' + error.message);
+            }
+        }
+
+        function detectBulkCustomerColumns(headers) {
+            bulkCustomerColumns = {};
+            
+            headers.forEach(header => {
+                const lower = header.toLowerCase();
+                
+                // Müşteri Adı
+                if (lower.includes('müşteri') || lower.includes('ad') || lower.includes('isim') || lower.includes('name')) {
+                    bulkCustomerColumns.name = header;
+                }
+                // Telefon
+                else if (lower.includes('telefon') || lower.includes('phone') || lower.includes('gsm')) {
+                    bulkCustomerColumns.phone = header;
+                }
+                // E-posta
+                else if (lower.includes('e-posta') || lower.includes('email') || lower.includes('mail')) {
+                    bulkCustomerColumns.email = header;
+                }
+                // Adres
+                else if (lower.includes('adres') || lower.includes('address')) {
+                    bulkCustomerColumns.address = header;
+                }
+                // Ödeme Şekli
+                else if (lower.includes('ödeme') || lower.includes('payment')) {
+                    bulkCustomerColumns.paymentType = header;
+                }
+                // Vade Gün
+                else if (lower.includes('vade') || lower.includes('gün') || lower.includes('day')) {
+                    bulkCustomerColumns.dueDays = header;
+                }
+                // Not
+                else if (lower.includes('not') || lower.includes('note')) {
+                    bulkCustomerColumns.note = header;
+                }
+            });
+            
+            console.log('📋 Detected columns:', bulkCustomerColumns);
+        }
+
+        async function prepareBulkCustomerData(jsonData) {
+            showNotification('🔍 Müşteriler kontrol ediliyor...');
+            
+            // Mevcut müşterileri getir
+            const existingSnapshot = await getCustomersRef()
+                .where('isCustomerOnly', '==', true)
+                .get();
+            
+            const existingCustomers = new Map();
+            existingSnapshot.forEach(doc => {
+                const data = doc.data();
+                const key = `${data.name}_${data.phone}`.toLowerCase();
+                existingCustomers.set(key, data);
+            });
+            
+            bulkCustomerData = [];
+            
+            jsonData.forEach((row, index) => {
+                const name = (row[bulkCustomerColumns.name] || '').toString().trim();
+                const phone = (row[bulkCustomerColumns.phone] || '').toString().trim().replace(/\D/g, '');
+                const email = (row[bulkCustomerColumns.email] || '').toString().trim();
+                const address = (row[bulkCustomerColumns.address] || '').toString().trim();
+                const paymentType = (row[bulkCustomerColumns.paymentType] || '').toString().trim();
+                const dueDays = parseInt(row[bulkCustomerColumns.dueDays]) || 0;
+                const note = (row[bulkCustomerColumns.note] || '').toString().trim();
+                
+                // Validasyon
+                let status = '';
+                let statusColor = '';
+                
+                if (!name || !phone) {
+                    status = '❌ Eksik Bilgi';
+                    statusColor = '#dc3545';
+                } else {
+                    const key = `${name}_${phone}`.toLowerCase();
+                    if (existingCustomers.has(key)) {
+                        status = '⚠️ Zaten Kayıtlı';
+                        statusColor = '#ffc107';
+                    } else {
+                        status = '🆕 Yeni';
+                        statusColor = '#28a745';
+                        selectedBulkCustomers.add(index); // Yeni müşterileri otomatik seç
+                    }
+                }
+                
+                bulkCustomerData.push({
+                    index,
+                    name,
+                    phone,
+                    email,
+                    address,
+                    paymentType,
+                    dueDays,
+                    note,
+                    status,
+                    statusColor
+                });
+            });
+            
+            console.log('📊 Prepared data:', bulkCustomerData);
+        }
+
+        function renderBulkCustomerPreview() {
+            const newCount = bulkCustomerData.filter(c => c.status === '🆕 Yeni').length;
+            const existingCount = bulkCustomerData.filter(c => c.status === '⚠️ Zaten Kayıtlı').length;
+            const errorCount = bulkCustomerData.filter(c => c.status === '❌ Eksik Bilgi').length;
+            
+            // Özet
+            document.getElementById('bulkCustomerSummary').innerHTML = `
+                <strong style="font-size: 16px;">📊 Özet:</strong><br>
+                <div style="margin-top: 10px;">
+                    • Toplam: <strong>${bulkCustomerData.length} müşteri</strong><br>
+                    • 🆕 Yeni eklenecek: <strong style="color: #28a745;">${newCount}</strong><br>
+                    • ⚠️ Zaten kayıtlı: <strong style="color: #ffc107;">${existingCount}</strong><br>
+                    • ❌ Hatalı/Eksik: <strong style="color: #dc3545;">${errorCount}</strong>
+                </div>
+            `;
+            
+            // Tablo
+            const tbody = document.getElementById('bulkCustomerTableBody');
+            tbody.innerHTML = bulkCustomerData.map(customer => `
+                <tr style="border-bottom: 1px solid #e0e0e0; background: ${customer.status === '❌ Eksik Bilgi' ? '#ffe6e6' : 'white'};">
+                    <td style="padding: 10px; text-align: center;">
+                        <input type="checkbox" 
+                               class="bulk-customer-checkbox" 
+                               data-index="${customer.index}"
+                               ${selectedBulkCustomers.has(customer.index) ? 'checked' : ''}
+                               ${customer.status !== '🆕 Yeni' ? 'disabled' : ''}
+                               onchange="toggleBulkCustomerSelection(${customer.index}, this.checked)"
+                               style="width: 18px; height: 18px; cursor: ${customer.status === '🆕 Yeni' ? 'pointer' : 'not-allowed'};">
+                    </td>
+                    <td style="padding: 10px;">
+                        <span style="background: ${customer.statusColor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">
+                            ${customer.status}
+                        </span>
+                    </td>
+                    <td style="padding: 10px; font-weight: ${customer.status === '🆕 Yeni' ? '600' : 'normal'};">${customer.name || '-'}</td>
+                    <td style="padding: 10px;">${customer.phone || '-'}</td>
+                    <td style="padding: 10px; font-size: 12px;">${customer.email || '-'}</td>
+                    <td style="padding: 10px;">${customer.paymentType || '-'}</td>
+                    <td style="padding: 10px; text-align: center;">${customer.dueDays || '-'}</td>
+                    <td style="padding: 10px; font-size: 12px;">${customer.note || '-'}</td>
+                </tr>
+            `).join('');
+            
+            // Önizlemeyi göster
+            document.getElementById('bulkCustomerPreview').style.display = 'block';
+            
+            // Select All checkbox durumu
+            updateSelectAllCheckbox();
+            
+            showNotification('✅ Önizleme hazır!');
+        }
+
+        function toggleBulkCustomerSelection(index, checked) {
+            if (checked) {
+                selectedBulkCustomers.add(index);
+            } else {
+                selectedBulkCustomers.delete(index);
+            }
+            updateSelectAllCheckbox();
+        }
+
+        function toggleAllCustomerSelection() {
+            const selectAll = document.getElementById('bulkCustomerSelectAll');
+            const newCustomers = bulkCustomerData.filter(c => c.status === '🆕 Yeni');
+            
+            if (selectAll.checked) {
+                newCustomers.forEach(c => selectedBulkCustomers.add(c.index));
+            } else {
+                selectedBulkCustomers.clear();
+            }
+            
+            // Checkbox'ları güncelle
+            document.querySelectorAll('.bulk-customer-checkbox').forEach(cb => {
+                const index = parseInt(cb.dataset.index);
+                const customer = bulkCustomerData.find(c => c.index === index);
+                if (customer && customer.status === '🆕 Yeni') {
+                    cb.checked = selectAll.checked;
+                }
+            });
+        }
+
+        function updateSelectAllCheckbox() {
+            const selectAll = document.getElementById('bulkCustomerSelectAll');
+            const newCustomers = bulkCustomerData.filter(c => c.status === '🆕 Yeni');
+            const selectedNew = newCustomers.filter(c => selectedBulkCustomers.has(c.index));
+            
+            selectAll.checked = newCustomers.length > 0 && selectedNew.length === newCustomers.length;
+            selectAll.indeterminate = selectedNew.length > 0 && selectedNew.length < newCustomers.length;
+        }
+
+        async function importBulkCustomers() {
+            if (selectedBulkCustomers.size === 0) {
+                alert('❌ Lütfen en az bir müşteri seçin!');
+                return;
+            }
+
+            if (!confirm(`✅ ${selectedBulkCustomers.size} yeni müşteri eklenecek. Devam edilsin mi?`)) {
+                return;
+            }
+
+            try {
+                showNotification('💾 Müşteriler kaydediliyor...');
+                
+                const userProfile = (await getUserRef().get()).data();
+                const now = new Date().toISOString();
+                const createdBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+
+                const batch = window.db.batch();
+                let batchCount = 0;
+                
+                for (const index of selectedBulkCustomers) {
+                    const customer = bulkCustomerData[index];
+                    
+                    const docRef = getCustomersRef().doc();
+                    batch.set(docRef, {
+                        name: customer.name,
+                        phone: customer.phone,
+                        email: customer.email || '',
+                        address: customer.address || '',
+                        note: customer.note || '',
+                        defaultPaymentType: customer.paymentType || '',
+                        defaultDueDays: customer.dueDays || 0,
+                        isCustomerOnly: true,
+                        dueDate: null,
+                        amount: 0,
+                        paymentType: '',
+                        status: 'no_payment',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdBy: createdBy,
+                        lastModifiedBy: createdBy,
+                        paidDate: null,
+                        activityLog: [{
+                            action: 'customer_created_bulk',
+                            by: createdBy,
+                            timestamp: now
+                        }]
+                    });
+                    
+                    batchCount++;
+                    
+                    // Her 450 kayıtta commit (Firestore limit: 500)
+                    if (batchCount >= 450) {
+                        await batch.commit();
+                        batchCount = 0;
+                    }
+                }
+                
+                // Son batch'i commit et
+                if (batchCount > 0) {
+                    await batch.commit();
+                }
+                
+                showNotification(`✅ ${selectedBulkCustomers.size} müşteri başarıyla eklendi!`);
+                closeBulkCustomerModal();
+                
+                // Refresh
+                await loadAndRenderCustomers();
+                
+            } catch (error) {
+                console.error('Bulk customer import error:', error);
+                alert('❌ Toplu import hatası: ' + error.message);
+            }
+        }
+
         // HISTORY FUNCTIONS
         let historyData = [];
         let historyFilter = 'paid'; // 'paid', 'deleted', 'all'
@@ -5968,6 +6566,7 @@
                                 <div style="display: flex; gap: 5px; flex-direction: column;">
                                     <button class="btn-sm" style="background: #25D366; color: white;" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', ${payment.amount}, '${payment.dueDate}'); event.stopPropagation();">💬 WhatsApp</button>
                                     <button class="btn-sm btn-success" onclick="markAsPaid('${payment.id}'); event.stopPropagation();">✓ Ödendi</button>
+                                    <button class="btn-sm" style="background: #667eea; color: white;" onclick="openEditPaymentModal('${payment.id}'); event.stopPropagation();">✏️ Düzenle</button>
                                     <button class="btn-sm btn-danger" onclick="deletePayment('${payment.id}'); event.stopPropagation();">🗑️ Sil</button>
                                 </div>
                             ` : `
