@@ -5904,7 +5904,7 @@
                                 <div style="display: flex; gap: 5px; flex-direction: column;">
                                     <button class="btn-sm" style="background: #25D366; color: white;" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', ${payment.amount}, '${payment.dueDate}'); event.stopPropagation();">💬 WhatsApp</button>
                                     <button class="btn-sm btn-success" onclick="markAsPaid('${payment.id}'); event.stopPropagation();">✓ Ödendi</button>
-                                    <button class="btn-sm btn-secondary" onclick="editPayment('${payment.id}'); event.stopPropagation();">✏️ Düzenle</button>
+                                    <button class="btn-sm btn-secondary" onclick="openEditModal('${payment.id}'); event.stopPropagation();">✏️ Düzenle</button>
                                     <button class="btn-sm btn-danger" onclick="deletePayment('${payment.id}'); event.stopPropagation();">🗑️ Sil</button>
                                 </div>
                             ` : `
