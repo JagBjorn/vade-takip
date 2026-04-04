@@ -1718,17 +1718,21 @@
                 return;
             }
 
-            const customerId = document.getElementById('editCustomerId').value;
             const name = document.getElementById('editCustomerName').value.trim();
             const phone = document.getElementById('editCustomerPhone').value.trim();
             const email = document.getElementById('editCustomerEmail').value.trim();
             const address = document.getElementById('editCustomerAddress').value.trim();
             const note = document.getElementById('editCustomerNote').value.trim();
+            
+            // Eski değerleri dataset'ten al
+            const modal = document.getElementById('editCustomerModal');
+            const oldName = modal.dataset.oldName;
+            const oldPhone = modal.dataset.oldPhone;
 
-            console.log('saveCustomerEdit called with:', { customerId, name, phone, email, address, note });
+            console.log('saveCustomerEdit:', { oldName, oldPhone, '→': name, phone });
 
             if (!name || !phone) {
-                alert('Lütfen ad ve telefon giriniz');
+                alert('❌ Lütfen ad ve telefon giriniz');
                 return;
             }
 
@@ -1742,31 +1746,22 @@
                     timestamp: now
                 };
 
-                // İlk önce bu kaydın eski bilgilerini alalım
-                const customerDoc = await getCustomersRef().doc(customerId).get();
-                if (!customerDoc.exists) {
-                    alert('Müşteri bulunamadı');
-                    return;
-                }
-
-                const oldData = customerDoc.data();
-                const oldName = oldData.name;
-                const oldPhone = oldData.phone;
-
-                console.log('Old data:', { oldName, oldPhone });
-
-                // AYNI MÜŞTERİNİN TÜM KAYITLARINI GÜNCELLE
+                // AYNI MÜŞTERİNİN TÜM KAYITLARINI BUL
                 const allCustomerRecords = await getCustomersRef()
                     .where('name', '==', oldName)
                     .where('phone', '==', oldPhone)
                     .get();
 
-                console.log('Found', allCustomerRecords.size, 'records to update');
+                console.log(`📊 Found ${allCustomerRecords.size} records to update`);
+
+                if (allCustomerRecords.empty) {
+                    alert('❌ Müşteri kayıtları bulunamadı!');
+                    return;
+                }
 
                 const batch = window.db.batch();
 
                 allCustomerRecords.forEach(doc => {
-                    console.log('Updating record:', doc.id);
                     batch.update(doc.ref, {
                         name,
                         phone,
@@ -1776,6 +1771,7 @@
                         lastModifiedBy: modifiedBy,
                         activityLog: firebase.firestore.FieldValue.arrayUnion({
                             action: 'customer_info_updated',
+                            changes: `${oldName} → ${name}, ${oldPhone} → ${phone}`,
                             by: modifiedBy,
                             timestamp: now
                         })
@@ -1783,22 +1779,19 @@
                 });
 
                 await batch.commit();
-                console.log('Batch committed successfully');
+                console.log('✅ Batch committed successfully');
 
-                showNotification('✅ Müşteri bilgileri güncellendi');
+                showNotification(`✅ ${allCustomerRecords.size} ödeme güncellendi`);
                 closeEditCustomerModal();
                 
-                // FORCE REFRESH - TÜM LİSTELERİ YENİLE
-                console.log('Force refreshing all lists...');
-                await loadAllCustomersForSearch();
+                // TÜM SAYFALARI YENİLE
+                await loadAndRenderCustomers();  // Müşteriler sekmesi
+                await updateDashboard();          // Dashboard
                 
-                // Dashboard'ı da yenile
-                await updateDashboard();
-                
-                console.log('All lists refreshed');
+                console.log('✅ All pages refreshed');
             } catch (error) {
                 console.error('saveCustomerEdit error:', error);
-                alert('Güncelleme başarısız: ' + error.message);
+                alert('❌ Güncelleme başarısız: ' + error.message);
             }
         }
 
@@ -4291,6 +4284,49 @@
             }
         }
 
+        function openEditCustomerModal(customerName, customerPhone) {
+            console.log('openEditCustomerModal called with:', customerName, customerPhone);
+            
+            // Müşterinin ilk ödemesini bul (müşteri bilgileri için)
+            getCustomersRef()
+                .where('name', '==', customerName)
+                .where('phone', '==', customerPhone)
+                .limit(1)
+                .get()
+                .then(snapshot => {
+                    if (snapshot.empty) {
+                        alert('❌ Müşteri bulunamadı!');
+                        return;
+                    }
+                    
+                    const firstDoc = snapshot.docs[0];
+                    const customerData = firstDoc.data();
+                    
+                    // Modal'ı aç
+                    document.getElementById('editCustomerModal').classList.add('show');
+                    
+                    // Form'u doldur
+                    setTimeout(() => {
+                        document.getElementById('editCustomerId').value = ''; // Boş bırak - name+phone kullanacağız
+                        document.getElementById('editCustomerName').value = customerName;
+                        document.getElementById('editCustomerPhone').value = customerPhone;
+                        document.getElementById('editCustomerEmail').value = customerData.email || '';
+                        document.getElementById('editCustomerAddress').value = customerData.address || '';
+                        document.getElementById('editCustomerNote').value = customerData.note || '';
+                        
+                        // Eski değerleri sakla (karşılaştırma için)
+                        document.getElementById('editCustomerModal').dataset.oldName = customerName;
+                        document.getElementById('editCustomerModal').dataset.oldPhone = customerPhone;
+                        
+                        console.log('✅ Form filled with customer data');
+                    }, 100);
+                })
+                .catch(error => {
+                    console.error('Error loading customer:', error);
+                    alert('❌ Müşteri yüklenirken hata: ' + error.message);
+                });
+        }
+
         function openEditModal(customerId) {
             console.log('openEditModal called with ID:', customerId);
             
@@ -4831,6 +4867,24 @@
         }
 
         // WhatsApp
+        async function sendWhatsAppToCustomer(phone, name) {
+            // Müşterinin bekleyen ödemelerini bul
+            const snapshot = await getCustomersRef()
+                .where('name', '==', name)
+                .where('phone', '==', phone)
+                .where('status', '==', 'pending')
+                .get();
+            
+            if (snapshot.empty) {
+                alert('ℹ️ Bu müşterinin bekleyen ödemesi yok.');
+                return;
+            }
+            
+            // İlk bekleyen ödemeyi gönder
+            const firstPayment = snapshot.docs[0].data();
+            sendWhatsApp(phone, name, firstPayment.amount, firstPayment.dueDate);
+        }
+
         async function sendWhatsApp(phone, name, amount, dueDate) {
             // Yetki kontrolü
             if (!hasPermission('whatsapp')) {
@@ -5854,6 +5908,16 @@
 
                         <!-- Ödeme Detayları (Accordion) -->
                         <div style="display: ${isExpanded ? 'block' : 'none'}; background: #f8f9fa; padding: 15px; border-top: 2px solid #e0e0e0;">
+                            <!-- Müşteri İşlem Butonları -->
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px;">
+                                <button class="btn-sm btn-secondary" onclick="openEditCustomerModal('${customer.name}', '${customer.phone}'); event.stopPropagation();" style="flex: 1;">
+                                    ✏️ Müşteri Bilgilerini Düzenle
+                                </button>
+                                <button class="btn-sm" style="background: #25D366; color: white; flex: 1;" onclick="sendWhatsAppToCustomer('${customer.phone}', '${customer.name}'); event.stopPropagation();">
+                                    💬 WhatsApp Gönder
+                                </button>
+                            </div>
+                            
                             ${pendingPayments.length > 0 ? `
                                 <h4 style="margin: 0 0 10px 0; color: #dc3545;">⏳ Bekleyen Ödemeler (${pendingPayments.length})</h4>
                                 ${renderPaymentList(pendingPayments, customer)}
@@ -5904,7 +5968,6 @@
                                 <div style="display: flex; gap: 5px; flex-direction: column;">
                                     <button class="btn-sm" style="background: #25D366; color: white;" onclick="sendWhatsApp('${customer.phone}', '${customer.name}', ${payment.amount}, '${payment.dueDate}'); event.stopPropagation();">💬 WhatsApp</button>
                                     <button class="btn-sm btn-success" onclick="markAsPaid('${payment.id}'); event.stopPropagation();">✓ Ödendi</button>
-                                    <button class="btn-sm btn-secondary" onclick="openEditModal('${payment.id}'); event.stopPropagation();">✏️ Düzenle</button>
                                     <button class="btn-sm btn-danger" onclick="deletePayment('${payment.id}'); event.stopPropagation();">🗑️ Sil</button>
                                 </div>
                             ` : `
