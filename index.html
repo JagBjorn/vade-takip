@@ -4207,6 +4207,19 @@
                         })
                     });
                     showNotification('✅ Ödeme alındı olarak işaretlendi');
+                    
+                    // Refresh current view
+                    const activeTab = document.querySelector('.tab.active');
+                    if (activeTab) {
+                        const tabName = activeTab.textContent.includes('Müşteri') ? 'customers' : 
+                                       activeTab.textContent.includes('Ödeme') ? 'list' : 'dashboard';
+                        
+                        if (tabName === 'customers') {
+                            loadAndRenderCustomers();
+                        } else if (tabName === 'dashboard') {
+                            updateDashboard();
+                        }
+                    }
                 } catch (error) {
                     console.error(error);
                     alert('İşlem başarısız');
@@ -4525,10 +4538,14 @@
                 const snapshot = await customersRef.get();
                 const customers = [];
                 snapshot.forEach(doc => {
-                    customers.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    // Sadece aktif (silinmemiş) kayıtları al
+                    if (!data.isDeleted) {
+                        customers.push({ id: doc.id, ...data });
+                    }
                 });
 
-                const totalCustomers = customers.length;
+                const totalCustomers = customers.filter(c => c.status !== 'paid').length; // Sadece bekleyen
                 const urgentCustomers = customers.filter(c => {
                     const daysLeft = getDaysUntilDue(c.dueDate);
                     return daysLeft >= 0 && daysLeft <= 3 && c.status !== 'paid';
