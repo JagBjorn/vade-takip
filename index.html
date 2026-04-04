@@ -685,6 +685,8 @@
             }
         }
     </style>
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -779,6 +781,7 @@
                 <button class="tab" onclick="showTab('add')">➕ Ödeme Ekle</button>
                 <button class="tab" onclick="showTab('list')">📋 Ödemeler</button>
                 <button class="tab" onclick="showTab('history')">📜 Geçmiş</button>
+                <button class="tab" onclick="showTab('reports')">📈 Raporlar</button>
                 <button class="tab" onclick="showTab('templates')">💬 Mesaj Şablonları</button>
                 <button class="tab" onclick="showTab('notifications')">🔔 Bildirimler</button>
                 <button class="tab" onclick="showTab('profile')">👤 Profil</button>
@@ -971,6 +974,7 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button class="btn btn-success" onclick="exportToExcel()" style="flex: 1; min-width: 150px;">📥 Excel'e Aktar</button>
                     <button class="btn" onclick="toggleBulkSelection()" id="bulkSelectBtn" style="flex: 1; min-width: 150px; background: #667eea;">☑️ Toplu Seç</button>
+                    <button class="btn" onclick="openBulkWhatsAppModal()" style="flex: 1; min-width: 150px; background: #25D366; color: white;">💬 Toplu WhatsApp</button>
                     <button class="btn btn-danger" onclick="bulkDeletePayments()" id="bulkDeleteBtn" style="flex: 1; min-width: 150px; display: none;">🗑️ Seçilenleri Sil</button>
                     <button class="btn btn-success" onclick="bulkMarkAsPaid()" id="bulkPaidBtn" style="flex: 1; min-width: 150px; display: none;">✅ Seçilenleri Öde</button>
                 </div>
@@ -1018,6 +1022,79 @@
                 </div>
 
                 <div id="historyList" class="customer-list loading">Yükleniyor...</div>
+            </div>
+
+            <!-- Raporlar -->
+            <div id="reports" class="content">
+                <h2 style="margin-bottom: 20px;">📈 Raporlar & Analitik</h2>
+
+                <!-- Filtre -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 15px;">🔍 Rapor Filtresi</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">Başlangıç</label>
+                            <input type="date" id="reportStartDate" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">Bitiş</label>
+                            <input type="date" id="reportEndDate" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn" onclick="generateReports()" style="width: 100%;">📊 Rapor Oluştur</button>
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn" style="width: 100%; background: #28a745;" onclick="exportReportToExcel()">📥 Excel İndir</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Özet Kartlar -->
+                <div class="stats-grid" style="margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="reportTotalPayments">0</div>
+                        <div class="stat-label">Toplam Ödeme</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        <div class="stat-value" style="color: white;" id="reportPaidAmount">0₺</div>
+                        <div class="stat-label" style="color: white;">Tahsilat</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                        <div class="stat-value" style="color: white;" id="reportPendingAmount">0₺</div>
+                        <div class="stat-label" style="color: white;">Bekleyen</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                        <div class="stat-value" style="color: white;" id="reportOverdueAmount">0₺</div>
+                        <div class="stat-label" style="color: white;">Gecikmiş</div>
+                    </div>
+                </div>
+
+                <!-- Grafikler -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <!-- Aylık Trend -->
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h4 style="margin-bottom: 15px;">📊 Aylık Trend (Son 6 Ay)</h4>
+                        <canvas id="monthlyTrendChart" style="max-height: 300px;"></canvas>
+                    </div>
+
+                    <!-- Ödeme Şekli Dağılımı -->
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h4 style="margin-bottom: 15px;">💳 Ödeme Şekli Dağılımı</h4>
+                        <canvas id="paymentTypeChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- En Çok Borçlu Müşteriler -->
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 15px;">🏆 En Çok Borçlu Müşteriler (Top 10)</h4>
+                    <div id="topDebtorsList"></div>
+                </div>
+
+                <!-- Gecikme Analizi -->
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin-bottom: 15px;">⚠️ Gecikme Analizi</h4>
+                    <div id="delayAnalysisList"></div>
+                </div>
             </div>
 
             <!-- Mesaj Şablonları -->
@@ -1193,6 +1270,29 @@
             <div id="settings" class="content">
                 <h2 style="margin-bottom: 20px;">⚙️ Genel Ayarlar</h2>
                 
+                <!-- Firma Seçimi -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 15px;">🏢 Firma Yönetimi</h3>
+                    <div class="form-group">
+                        <label>Aktif Firma</label>
+                        <select id="activeCompanySelect" onchange="switchCompany()" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            <option value="">Firma seçin...</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="openNewCompanyModal()" style="width: 100%;">➕ Yeni Firma Ekle</button>
+                </div>
+
+                <!-- Müşteri Portali -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; color: white;">
+                    <h3 style="margin-bottom: 15px;">🌐 Müşteri Portali</h3>
+                    <p style="font-size: 14px; opacity: 0.9; margin-bottom: 15px;">Müşterileriniz bu linki kullanarak kendi borçlarını görüntüleyebilir.</p>
+                    <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                        <input type="text" id="portalLink" value="https://yoursite.com/musteri_portal.html" readonly style="flex: 1; border: none; background: transparent; color: #667eea; font-weight: 600;">
+                        <button onclick="copyPortalLink()" style="background: #667eea; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">📋 Kopyala</button>
+                    </div>
+                    <small style="opacity: 0.8;">Bu linki müşterilerinizle paylaşın. Telefon numaraları ile giriş yapabilirler.</small>
+                </div>
+                
                 <div class="form-group">
                     <label>Şirket Adı</label>
                     <input type="text" id="companyName" placeholder="Şirket Adı">
@@ -1207,6 +1307,28 @@
                 <button class="btn btn-danger" onclick="deleteAccount()" style="margin-top: 20px; width: 100%;">🗑️ Hesabı Sil</button>
                 <button class="btn btn-secondary" onclick="clearAllData()" style="margin-top: 10px; width: 100%;">🗑️ Sadece Verileri Temizle (Hesap kalır)</button>
             </div>
+        </div>
+    </div>
+
+    <!-- New Company Modal -->
+    <div id="newCompanyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🏢 Yeni Firma Ekle</h3>
+                <button class="close-modal" onclick="closeNewCompanyModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Firma Adı *</label>
+                <input type="text" id="newCompanyName" placeholder="Atlaspet Pet Products">
+            </div>
+
+            <div class="form-group">
+                <label>İletişim Bilgisi</label>
+                <textarea id="newCompanyContact" placeholder="Adres, telefon, e-posta..."></textarea>
+            </div>
+
+            <button class="btn" onclick="createNewCompany()">💾 Firma Oluştur</button>
         </div>
     </div>
 
@@ -1545,6 +1667,105 @@
                         ❌ İptal
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk WhatsApp Modal -->
+    <div id="bulkWhatsAppModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">💬 Toplu WhatsApp Gönder</h3>
+                <button class="close-modal" onclick="closeBulkWhatsAppModal()">×</button>
+            </div>
+            
+            <!-- Filtre Seçenekleri -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 15px;">📋 Kime Gönderilecek?</h4>
+                <div style="display: grid; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="radio" name="bulkWhatsAppFilter" value="overdue" checked onchange="updateBulkWhatsAppPreview()">
+                        <span>⚠️ Tüm gecikmiş ödemeler</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="radio" name="bulkWhatsAppFilter" value="tomorrow" onchange="updateBulkWhatsAppPreview()">
+                        <span>📅 Yarın vadesi gelenler</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="radio" name="bulkWhatsAppFilter" value="thisWeek" onchange="updateBulkWhatsAppPreview()">
+                        <span>📆 Bu hafta vadesi gelenler</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="radio" name="bulkWhatsAppFilter" value="selected" onchange="updateBulkWhatsAppPreview()">
+                        <span>☑️ Manuel seçim yap</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Manuel Seçim -->
+            <div id="bulkWhatsAppManualSelect" style="display: none; background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; max-height: 300px; overflow-y: auto; border: 2px solid #e0e0e0;">
+                <h4 style="margin-bottom: 10px;">Müşteri Seçin:</h4>
+                <div id="bulkWhatsAppCustomerList"></div>
+            </div>
+
+            <!-- Mesaj Şablonu -->
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: 600; margin-bottom: 10px; display: block;">✉️ Mesaj Şablonu</label>
+                <textarea id="bulkWhatsAppMessage" rows="6" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 14px;">Merhaba {MÜŞTERİ},
+
+{TUTAR}₺ tutarındaki ödemenizin vadesi {VADE} tarihinde dolacak.
+
+Lütfen ödemenizi zamanında yapınız.
+
+Teşekkürler,
+Atlaspet Pet Products</textarea>
+                <small style="color: #666; font-size: 12px;">
+                    Değişkenler: {MÜŞTERİ}, {TUTAR}, {VADE}, {EVRAK}, {GÜN}
+                </small>
+            </div>
+
+            <!-- Önizleme -->
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">📊 Özet:</h4>
+                <div id="bulkWhatsAppSummary">
+                    <strong>0 müşteri</strong> seçildi
+                </div>
+            </div>
+
+            <!-- Gönder Butonu -->
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" onclick="sendBulkWhatsApp()" style="flex: 1; background: #25D366; color: white;">
+                    📤 Toplu Gönder
+                </button>
+                <button class="btn btn-secondary" onclick="closeBulkWhatsAppModal()" style="flex: 1;">
+                    ❌ İptal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Timeline Modal -->
+    <div id="customerTimelineModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="timelineCustomerName">👤 Müşteri Detayı</h3>
+                <button class="close-modal" onclick="closeCustomerTimelineModal()">×</button>
+            </div>
+            
+            <!-- Müşteri Özet Bilgiler -->
+            <div id="timelineCustomerInfo" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;"></div>
+            
+            <!-- Yeni Not Ekle -->
+            <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #e0e0e0;">
+                <h4 style="margin-bottom: 15px;">📝 Yeni Not Ekle</h4>
+                <textarea id="newCustomerNote" placeholder="Müşteri hakkında not..." rows="3" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; margin-bottom: 10px;"></textarea>
+                <button class="btn btn-sm" onclick="addCustomerNote()" style="background: #667eea;">➕ Not Ekle</button>
+            </div>
+            
+            <!-- Timeline -->
+            <div style="background: white; padding: 20px; border-radius: 10px;">
+                <h4 style="margin-bottom: 20px;">📜 Zaman Çizelgesi</h4>
+                <div id="customerTimeline"></div>
             </div>
         </div>
     </div>
@@ -2087,6 +2308,8 @@
                 loadAndRenderCustomers();
             } else if (tabName === 'history') {
                 loadHistory();
+            } else if (tabName === 'reports') {
+                initializeReports();
             } else if (tabName === 'profile') {
                 loadProfile();
                 loadSharedUsers();
@@ -5750,6 +5973,950 @@
                 closePermissionsModal();
             }
         });
+        // REPORTING & ANALYTICS FUNCTIONS
+        let monthlyChart = null;
+        let paymentTypeChart = null;
+
+        function initializeReports() {
+            // Varsayılan tarih aralığı: Son 30 gün
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            document.getElementById('reportStartDate').valueAsDate = startDate;
+            document.getElementById('reportEndDate').valueAsDate = endDate;
+            
+            generateReports();
+        }
+
+        async function generateReports() {
+            try {
+                showNotification('📊 Raporlar oluşturuluyor...');
+                
+                const startDate = document.getElementById('reportStartDate').value;
+                const endDate = document.getElementById('reportEndDate').value;
+                
+                if (!startDate || !endDate) {
+                    alert('❌ Lütfen tarih aralığı seçin!');
+                    return;
+                }
+                
+                // Tüm ödemeleri getir
+                const snapshot = await getCustomersRef().get();
+                const allPayments = [];
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (!data.isCustomerOnly) {
+                        allPayments.push({ id: doc.id, ...data });
+                    }
+                });
+                
+                // Tarih filtreleme
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                
+                const filteredPayments = allPayments.filter(p => {
+                    const createdAt = p.createdAt?.toDate?.() || new Date(p.createdAt);
+                    return createdAt >= start && createdAt <= end;
+                });
+                
+                console.log(`📊 ${filteredPayments.length} ödeme bulundu`);
+                
+                // Özet kartları güncelle
+                updateReportSummary(filteredPayments);
+                
+                // Grafikleri oluştur
+                createMonthlyTrendChart(allPayments);
+                createPaymentTypeChart(filteredPayments);
+                
+                // Top müşteriler
+                renderTopDebtors(allPayments);
+                
+                // Gecikme analizi
+                renderDelayAnalysis(allPayments);
+                
+                showNotification('✅ Raporlar oluşturuldu!');
+                
+            } catch (error) {
+                console.error('Report generation error:', error);
+                alert('❌ Rapor oluşturulurken hata: ' + error.message);
+            }
+        }
+
+        function updateReportSummary(payments) {
+            const totalPayments = payments.length;
+            const paidPayments = payments.filter(p => p.status === 'paid');
+            const pendingPayments = payments.filter(p => p.status === 'pending');
+            
+            const paidAmount = paidPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            const pendingAmount = pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            
+            // Gecikmiş hesapla
+            const today = new Date();
+            const overduePayments = pendingPayments.filter(p => {
+                const dueDate = new Date(p.dueDate);
+                return dueDate < today;
+            });
+            const overdueAmount = overduePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            
+            document.getElementById('reportTotalPayments').textContent = totalPayments;
+            document.getElementById('reportPaidAmount').textContent = paidAmount.toLocaleString('tr-TR') + '₺';
+            document.getElementById('reportPendingAmount').textContent = pendingAmount.toLocaleString('tr-TR') + '₺';
+            document.getElementById('reportOverdueAmount').textContent = overdueAmount.toLocaleString('tr-TR') + '₺';
+        }
+
+        function createMonthlyTrendChart(allPayments) {
+            const ctx = document.getElementById('monthlyTrendChart');
+            if (!ctx) return;
+            
+            // Son 6 ay
+            const months = [];
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                months.push({
+                    label: d.toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }),
+                    start: new Date(d.getFullYear(), d.getMonth(), 1),
+                    end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999)
+                });
+            }
+            
+            const paidData = months.map(m => {
+                return allPayments
+                    .filter(p => {
+                        if (!p.paidDate || p.status !== 'paid') return false;
+                        const paidDate = p.paidDate.toDate ? p.paidDate.toDate() : new Date(p.paidDate);
+                        return paidDate >= m.start && paidDate <= m.end;
+                    })
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+            });
+            
+            const createdData = months.map(m => {
+                return allPayments
+                    .filter(p => {
+                        const createdAt = p.createdAt?.toDate?.() || new Date(p.createdAt);
+                        return createdAt >= m.start && createdAt <= m.end;
+                    })
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+            });
+            
+            if (monthlyChart) {
+                monthlyChart.destroy();
+            }
+            
+            monthlyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months.map(m => m.label),
+                    datasets: [
+                        {
+                            label: 'Tahsilat',
+                            data: paidData,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Oluşturulan',
+                            data: createdData,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('tr-TR') + '₺';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPaymentTypeChart(payments) {
+            const ctx = document.getElementById('paymentTypeChart');
+            if (!ctx) return;
+            
+            // Ödeme şekillerine göre grupla
+            const typeMap = {};
+            payments.forEach(p => {
+                const type = p.paymentType || 'Belirtilmemiş';
+                if (!typeMap[type]) typeMap[type] = 0;
+                typeMap[type] += p.amount || 0;
+            });
+            
+            const labels = Object.keys(typeMap);
+            const data = Object.values(typeMap);
+            const colors = [
+                '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8', 
+                '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'
+            ];
+            
+            if (paymentTypeChart) {
+                paymentTypeChart.destroy();
+            }
+            
+            paymentTypeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed.toLocaleString('tr-TR') + '₺';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTopDebtors(allPayments) {
+            // Müşteri bazında grupla
+            const customerMap = {};
+            allPayments.forEach(p => {
+                if (p.status !== 'pending') return;
+                
+                const key = `${p.name}_${p.phone}`;
+                if (!customerMap[key]) {
+                    customerMap[key] = {
+                        name: p.name,
+                        phone: p.phone,
+                        totalDebt: 0,
+                        paymentCount: 0
+                    };
+                }
+                customerMap[key].totalDebt += p.amount || 0;
+                customerMap[key].paymentCount++;
+            });
+            
+            // Sırala ve top 10 al
+            const sorted = Object.values(customerMap)
+                .sort((a, b) => b.totalDebt - a.totalDebt)
+                .slice(0, 10);
+            
+            const container = document.getElementById('topDebtorsList');
+            if (sorted.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">Bekleyen ödeme yok.</p>';
+                return;
+            }
+            
+            container.innerHTML = sorted.map((c, i) => `
+                <div style="padding: 15px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 24px; font-weight: 700; color: ${i < 3 ? '#ffc107' : '#999'};">${i + 1}</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 15px;">${c.name}</div>
+                            <div style="font-size: 13px; color: #666;">📱 ${c.phone} • ${c.paymentCount} ödeme</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 20px; font-weight: 700; color: #dc3545;">${c.totalDebt.toLocaleString('tr-TR')}₺</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDelayAnalysis(allPayments) {
+            const today = new Date();
+            const pendingPayments = allPayments.filter(p => p.status === 'pending');
+            
+            // Gecikme grupları
+            const groups = {
+                '0-7': { label: '0-7 gün gecikmiş', count: 0, amount: 0, color: '#ffc107' },
+                '8-30': { label: '8-30 gün gecikmiş', count: 0, amount: 0, color: '#ff9800' },
+                '31+': { label: '31+ gün gecikmiş', count: 0, amount: 0, color: '#dc3545' }
+            };
+            
+            pendingPayments.forEach(p => {
+                const dueDate = new Date(p.dueDate);
+                const diffDays = Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 0) return;
+                
+                if (diffDays <= 7) {
+                    groups['0-7'].count++;
+                    groups['0-7'].amount += p.amount || 0;
+                } else if (diffDays <= 30) {
+                    groups['8-30'].count++;
+                    groups['8-30'].amount += p.amount || 0;
+                } else {
+                    groups['31+'].count++;
+                    groups['31+'].amount += p.amount || 0;
+                }
+            });
+            
+            const container = document.getElementById('delayAnalysisList');
+            container.innerHTML = Object.values(groups).map(g => `
+                <div style="padding: 15px; background: ${g.color}10; border-left: 4px solid ${g.color}; margin-bottom: 10px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: ${g.color};">${g.label}</div>
+                            <div style="font-size: 13px; color: #666; margin-top: 5px;">${g.count} ödeme</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 20px; font-weight: 700; color: ${g.color};">${g.amount.toLocaleString('tr-TR')}₺</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function exportReportToExcel() {
+            try {
+                showNotification('📥 Excel oluşturuluyor...');
+                
+                // SheetJS yükle
+                if (typeof XLSX === 'undefined') {
+                    await loadSheetJS();
+                }
+                
+                const startDate = document.getElementById('reportStartDate').value;
+                const endDate = document.getElementById('reportEndDate').value;
+                
+                // Tüm ödemeleri getir
+                const snapshot = await getCustomersRef().get();
+                const allPayments = [];
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (!data.isCustomerOnly) {
+                        allPayments.push({ id: doc.id, ...data });
+                    }
+                });
+                
+                // Excel verisi hazırla
+                const excelData = allPayments.map(p => ({
+                    'Müşteri': p.name,
+                    'Telefon': p.phone,
+                    'Tutar': p.amount,
+                    'Vade Tarihi': p.dueDate ? new Date(p.dueDate).toLocaleDateString('tr-TR') : '',
+                    'Durum': p.status === 'paid' ? 'Ödendi' : 'Bekliyor',
+                    'Ödeme Şekli': p.paymentType || '',
+                    'Evrak No': p.docNo || '',
+                    'Not': p.note || '',
+                    'Ödeme Tarihi': p.paidDate ? (p.paidDate.toDate ? p.paidDate.toDate().toLocaleDateString('tr-TR') : new Date(p.paidDate).toLocaleDateString('tr-TR')) : ''
+                }));
+                
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Rapor');
+                
+                const filename = `Vade_Rapor_${startDate}_${endDate}.xlsx`;
+                XLSX.writeFile(wb, filename);
+                
+                showNotification('✅ Excel indirildi!');
+                
+            } catch (error) {
+                console.error('Excel export error:', error);
+                alert('❌ Excel oluşturulurken hata: ' + error.message);
+            }
+        }
+
+        function copyPortalLink() {
+            const linkInput = document.getElementById('portalLink');
+            linkInput.select();
+            document.execCommand('copy');
+            showNotification('✅ Portal linki kopyalandı!');
+        }
+
+        // MULTI-COMPANY FUNCTIONS
+        async function loadUserCompanies() {
+            try {
+                const userId = window.auth.currentUser.uid;
+                const userDoc = await window.db.collection('users').doc(userId).get();
+                const userData = userDoc.data();
+                
+                // Kullanıcının firmalarını getir
+                const companiesSnapshot = await window.db.collection('companies')
+                    .where('members', 'array-contains', userId)
+                    .get();
+                
+                const companies = [];
+                companiesSnapshot.forEach(doc => {
+                    companies.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Dropdown'u doldur
+                const select = document.getElementById('activeCompanySelect');
+                select.innerHTML = '<option value="">Firma seçin...</option>' +
+                    companies.map(c => `<option value="${c.id}" ${c.id === userData?.activeCompanyId ? 'selected' : ''}>${c.name}</option>`).join('');
+                
+                // Aktif firmayı set et
+                if (userData?.activeCompanyId) {
+                    currentCompanyId = userData.activeCompanyId;
+                } else if (companies.length > 0) {
+                    // İlk firmayı aktif yap
+                    currentCompanyId = companies[0].id;
+                    await window.db.collection('users').doc(userId).update({
+                        activeCompanyId: currentCompanyId
+                    });
+                }
+                
+                return companies;
+                
+            } catch (error) {
+                console.error('Load companies error:', error);
+                return [];
+            }
+        }
+
+        async function switchCompany() {
+            const newCompanyId = document.getElementById('activeCompanySelect').value;
+            
+            if (!newCompanyId) return;
+            
+            try {
+                const userId = window.auth.currentUser.uid;
+                await window.db.collection('users').doc(userId).update({
+                    activeCompanyId: newCompanyId
+                });
+                
+                currentCompanyId = newCompanyId;
+                showNotification('🏢 Firma değiştirildi');
+                
+                // Sayfayı yenile
+                location.reload();
+                
+            } catch (error) {
+                console.error('Switch company error:', error);
+                alert('❌ Firma değiştirilemedi: ' + error.message);
+            }
+        }
+
+        function openNewCompanyModal() {
+            document.getElementById('newCompanyModal').classList.add('show');
+            document.getElementById('newCompanyName').value = '';
+            document.getElementById('newCompanyContact').value = '';
+        }
+
+        function closeNewCompanyModal() {
+            document.getElementById('newCompanyModal').classList.remove('show');
+        }
+
+        async function createNewCompany() {
+            const name = document.getElementById('newCompanyName').value.trim();
+            const contact = document.getElementById('newCompanyContact').value.trim();
+            
+            if (!name) {
+                alert('❌ Lütfen firma adı girin!');
+                return;
+            }
+            
+            try {
+                const userId = window.auth.currentUser.uid;
+                const userEmail = window.auth.currentUser.email;
+                
+                // Yeni firma oluştur
+                const companyRef = await window.db.collection('companies').add({
+                    name: name,
+                    contact: contact || '',
+                    ownerId: userId,
+                    members: [userId],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: userEmail
+                });
+                
+                // Kullanıcının aktif firmasını güncelle
+                await window.db.collection('users').doc(userId).update({
+                    activeCompanyId: companyRef.id
+                });
+                
+                currentCompanyId = companyRef.id;
+                
+                showNotification('✅ Firma oluşturuldu!');
+                closeNewCompanyModal();
+                
+                // Firma listesini yenile
+                await loadUserCompanies();
+                
+            } catch (error) {
+                console.error('Create company error:', error);
+                alert('❌ Firma oluşturulamadı: ' + error.message);
+            }
+        }
+
+        // Firestore referanslarını firma bazlı yap
+        function getCustomersRef() {
+            if (!currentCompanyId) {
+                throw new Error('Aktif firma seçilmemiş!');
+            }
+            return window.db.collection('companies').doc(currentCompanyId).collection('customers');
+        }
+
+        function getUserRef() {
+            return window.db.collection('users').doc(window.auth.currentUser.uid);
+        }
+
+        // CUSTOMER TIMELINE & NOTES FUNCTIONS
+        let currentTimelineCustomer = null;
+
+        async function openCustomerTimeline(name, phone) {
+            currentTimelineCustomer = { name, phone };
+            
+            document.getElementById('customerTimelineModal').classList.add('show');
+            document.getElementById('timelineCustomerName').textContent = `👤 ${name}`;
+            document.getElementById('newCustomerNote').value = '';
+            
+            await loadCustomerTimeline(name, phone);
+        }
+
+        function closeCustomerTimelineModal() {
+            document.getElementById('customerTimelineModal').classList.remove('show');
+            currentTimelineCustomer = null;
+        }
+
+        async function loadCustomerTimeline(name, phone) {
+            try {
+                // Müşterinin tüm ödemelerini getir
+                const snapshot = await getCustomersRef()
+                    .where('name', '==', name)
+                    .where('phone', '==', phone)
+                    .get();
+                
+                const payments = [];
+                snapshot.forEach(doc => {
+                    payments.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Müşteri özet bilgileri
+                const totalDebt = payments
+                    .filter(p => p.status === 'pending')
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+                
+                const totalPaid = payments
+                    .filter(p => p.status === 'paid')
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+                
+                const paymentCount = payments.filter(p => !p.isCustomerOnly).length;
+                
+                // İlk ödeme kaydından bilgileri al
+                const customerInfo = payments.find(p => p.email || p.address || p.defaultPaymentType) || payments[0];
+                
+                document.getElementById('timelineCustomerInfo').innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <strong>📱 Telefon:</strong><br>
+                            ${phone}
+                        </div>
+                        <div>
+                            <strong>📧 E-posta:</strong><br>
+                            ${customerInfo?.email || '-'}
+                        </div>
+                        <div>
+                            <strong>📍 Adres:</strong><br>
+                            ${customerInfo?.address || '-'}
+                        </div>
+                        <div>
+                            <strong>💳 Ödeme Tipi:</strong><br>
+                            ${customerInfo?.defaultPaymentType || '-'}
+                        </div>
+                        <div>
+                            <strong>💰 Toplam Borç:</strong><br>
+                            <span style="color: #dc3545; font-size: 18px; font-weight: 700;">${totalDebt.toLocaleString('tr-TR')}₺</span>
+                        </div>
+                        <div>
+                            <strong>✅ Toplam Tahsilat:</strong><br>
+                            <span style="color: #28a745; font-size: 18px; font-weight: 700;">${totalPaid.toLocaleString('tr-TR')}₺</span>
+                        </div>
+                        <div>
+                            <strong>📊 Ödeme Sayısı:</strong><br>
+                            ${paymentCount} ödeme
+                        </div>
+                    </div>
+                `;
+                
+                // Timeline oluştur
+                renderCustomerTimeline(payments);
+                
+            } catch (error) {
+                console.error('Timeline load error:', error);
+                alert('❌ Timeline yüklenirken hata: ' + error.message);
+            }
+        }
+
+        function renderCustomerTimeline(payments) {
+            const events = [];
+            
+            // Tüm activity log'ları topla
+            payments.forEach(payment => {
+                if (payment.activityLog && Array.isArray(payment.activityLog)) {
+                    payment.activityLog.forEach(log => {
+                        events.push({
+                            timestamp: log.timestamp,
+                            action: log.action,
+                            by: log.by,
+                            changes: log.changes,
+                            paymentAmount: payment.amount,
+                            paymentDueDate: payment.dueDate
+                        });
+                    });
+                }
+                
+                // Ödeme oluşturma
+                if (payment.createdAt && !payment.isCustomerOnly) {
+                    const createdAt = payment.createdAt.toDate ? payment.createdAt.toDate() : new Date(payment.createdAt);
+                    events.push({
+                        timestamp: createdAt.toISOString(),
+                        action: 'payment_created',
+                        paymentAmount: payment.amount,
+                        paymentDueDate: payment.dueDate
+                    });
+                }
+                
+                // Ödeme yapılma
+                if (payment.paidDate && payment.status === 'paid') {
+                    const paidDate = payment.paidDate.toDate ? payment.paidDate.toDate() : new Date(payment.paidDate);
+                    events.push({
+                        timestamp: paidDate.toISOString(),
+                        action: 'payment_paid',
+                        by: payment.paidBy,
+                        paymentAmount: payment.amount
+                    });
+                }
+            });
+            
+            // Tarihe göre sırala (yeniden eskiye)
+            events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            const container = document.getElementById('customerTimeline');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">Henüz aktivite yok.</p>';
+                return;
+            }
+            
+            container.innerHTML = events.map(event => {
+                const date = new Date(event.timestamp);
+                const icon = getEventIcon(event.action);
+                const color = getEventColor(event.action);
+                const description = getEventDescription(event);
+                
+                return `
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: ${color}20; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span style="font-size: 20px;">${icon}</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: ${color}; margin-bottom: 5px;">${description}</div>
+                            <div style="font-size: 13px; color: #666;">
+                                ${date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                ${event.by ? ` • ${event.by.fullName || event.by.email}` : ''}
+                            </div>
+                            ${event.changes ? `<div style="font-size: 12px; color: #999; margin-top: 5px;">${event.changes}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getEventIcon(action) {
+            const icons = {
+                'customer_created': '👤',
+                'customer_created_bulk': '👥',
+                'customer_info_updated': '✏️',
+                'payment_created': '➕',
+                'payment_paid': '✅',
+                'payment_edited': '📝',
+                'payment_deleted': '🗑️',
+                'customer_note_added': '📝'
+            };
+            return icons[action] || '📌';
+        }
+
+        function getEventColor(action) {
+            const colors = {
+                'customer_created': '#667eea',
+                'customer_created_bulk': '#667eea',
+                'customer_info_updated': '#ffc107',
+                'payment_created': '#17a2b8',
+                'payment_paid': '#28a745',
+                'payment_edited': '#fd7e14',
+                'payment_deleted': '#dc3545',
+                'customer_note_added': '#6f42c1'
+            };
+            return colors[action] || '#6c757d';
+        }
+
+        function getEventDescription(event) {
+            const descriptions = {
+                'customer_created': 'Müşteri oluşturuldu',
+                'customer_created_bulk': 'Toplu müşteri ekleme',
+                'customer_info_updated': 'Müşteri bilgileri güncellendi',
+                'payment_created': `${event.paymentAmount?.toLocaleString('tr-TR')}₺ ödeme eklendi`,
+                'payment_paid': `${event.paymentAmount?.toLocaleString('tr-TR')}₺ ödeme yapıldı`,
+                'payment_edited': 'Ödeme düzenlendi',
+                'payment_deleted': 'Ödeme silindi',
+                'customer_note_added': 'Not eklendi'
+            };
+            return descriptions[event.action] || event.action;
+        }
+
+        async function addCustomerNote() {
+            const note = document.getElementById('newCustomerNote').value.trim();
+            
+            if (!note) {
+                alert('❌ Lütfen bir not girin!');
+                return;
+            }
+            
+            if (!currentTimelineCustomer) return;
+            
+            try {
+                const now = new Date().toISOString();
+                const userProfile = (await getUserRef().get()).data();
+                const by = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+                
+                // Müşterinin bir kaydını bul ve nota ekle
+                const snapshot = await getCustomersRef()
+                    .where('name', '==', currentTimelineCustomer.name)
+                    .where('phone', '==', currentTimelineCustomer.phone)
+                    .limit(1)
+                    .get();
+                
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    await doc.ref.update({
+                        activityLog: firebase.firestore.FieldValue.arrayUnion({
+                            action: 'customer_note_added',
+                            changes: note,
+                            by: by,
+                            timestamp: now
+                        })
+                    });
+                    
+                    showNotification('✅ Not eklendi');
+                    document.getElementById('newCustomerNote').value = '';
+                    await loadCustomerTimeline(currentTimelineCustomer.name, currentTimelineCustomer.phone);
+                }
+                
+            } catch (error) {
+                console.error('Add note error:', error);
+                alert('❌ Not eklenirken hata: ' + error.message);
+            }
+        }
+
+        // BULK WHATSAPP FUNCTIONS
+        let bulkWhatsAppRecipients = [];
+
+        function openBulkWhatsAppModal() {
+            document.getElementById('bulkWhatsAppModal').classList.add('show');
+            updateBulkWhatsAppPreview();
+        }
+
+        function closeBulkWhatsAppModal() {
+            document.getElementById('bulkWhatsAppModal').classList.remove('show');
+        }
+
+        async function updateBulkWhatsAppPreview() {
+            const filter = document.querySelector('input[name="bulkWhatsAppFilter"]:checked').value;
+            
+            // Manuel seçim göster/gizle
+            const manualDiv = document.getElementById('bulkWhatsAppManualSelect');
+            manualDiv.style.display = filter === 'selected' ? 'block' : 'none';
+            
+            try {
+                const snapshot = await getCustomersRef()
+                    .where('status', '==', 'pending')
+                    .where('isDeleted', '!=', true)
+                    .get();
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                
+                const weekEnd = new Date(today);
+                weekEnd.setDate(weekEnd.getDate() + 7);
+                
+                let filtered = [];
+                
+                snapshot.forEach(doc => {
+                    const payment = { id: doc.id, ...doc.data() };
+                    const dueDate = new Date(payment.dueDate);
+                    dueDate.setHours(0, 0, 0, 0);
+                    
+                    if (filter === 'overdue' && dueDate < today) {
+                        filtered.push(payment);
+                    } else if (filter === 'tomorrow' && dueDate.getTime() === tomorrow.getTime()) {
+                        filtered.push(payment);
+                    } else if (filter === 'thisWeek' && dueDate >= today && dueDate <= weekEnd) {
+                        filtered.push(payment);
+                    }
+                });
+                
+                if (filter === 'selected') {
+                    // Manuel seçim için tüm ödemeleri göster
+                    filtered = [];
+                    snapshot.forEach(doc => {
+                        filtered.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderBulkWhatsAppCustomerList(filtered);
+                } else {
+                    bulkWhatsAppRecipients = filtered;
+                }
+                
+                updateBulkWhatsAppSummary();
+                
+            } catch (error) {
+                console.error('Preview error:', error);
+            }
+        }
+
+        function renderBulkWhatsAppCustomerList(payments) {
+            const container = document.getElementById('bulkWhatsAppCustomerList');
+            
+            // Müşteri bazında grupla
+            const customerMap = new Map();
+            payments.forEach(p => {
+                const key = `${p.name}_${p.phone}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, {
+                        name: p.name,
+                        phone: p.phone,
+                        payments: []
+                    });
+                }
+                customerMap.get(key).payments.push(p);
+            });
+            
+            const customers = Array.from(customerMap.values());
+            
+            container.innerHTML = customers.map(c => `
+                <label style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #e0e0e0; cursor: pointer;">
+                    <input type="checkbox" 
+                           class="bulk-whatsapp-customer-cb" 
+                           data-customer="${c.name}_${c.phone}"
+                           onchange="updateBulkWhatsAppSelection()"
+                           style="width: 18px; height: 18px;">
+                    <div style="flex: 1;">
+                        <strong>${c.name}</strong><br>
+                        <small style="color: #666;">📱 ${c.phone} • ${c.payments.length} ödeme</small>
+                    </div>
+                </label>
+            `).join('');
+        }
+
+        function updateBulkWhatsAppSelection() {
+            const filter = document.querySelector('input[name="bulkWhatsAppFilter"]:checked').value;
+            
+            if (filter === 'selected') {
+                // Seçili müşterilerin ödemelerini topla
+                const selectedCheckboxes = document.querySelectorAll('.bulk-whatsapp-customer-cb:checked');
+                const selectedKeys = Array.from(selectedCheckboxes).map(cb => cb.dataset.customer);
+                
+                getCustomersRef()
+                    .where('status', '==', 'pending')
+                    .where('isDeleted', '!=', true)
+                    .get()
+                    .then(snapshot => {
+                        bulkWhatsAppRecipients = [];
+                        snapshot.forEach(doc => {
+                            const payment = { id: doc.id, ...doc.data() };
+                            const key = `${payment.name}_${payment.phone}`;
+                            if (selectedKeys.includes(key)) {
+                                bulkWhatsAppRecipients.push(payment);
+                            }
+                        });
+                        updateBulkWhatsAppSummary();
+                    });
+            }
+        }
+
+        function updateBulkWhatsAppSummary() {
+            // Müşteri sayısını hesapla (unique)
+            const uniqueCustomers = new Set(bulkWhatsAppRecipients.map(p => `${p.name}_${p.phone}`));
+            
+            document.getElementById('bulkWhatsAppSummary').innerHTML = `
+                <strong>${uniqueCustomers.size} müşteri</strong> • 
+                <strong>${bulkWhatsAppRecipients.length} ödeme</strong> için mesaj gönderilecek
+            `;
+        }
+
+        function sendBulkWhatsApp() {
+            if (bulkWhatsAppRecipients.length === 0) {
+                alert('❌ Lütfen en az bir müşteri seçin!');
+                return;
+            }
+            
+            const template = document.getElementById('bulkWhatsAppMessage').value;
+            const uniqueCustomers = new Set(bulkWhatsAppRecipients.map(p => `${p.name}_${p.phone}`));
+            
+            if (!confirm(`📤 ${uniqueCustomers.size} müşteriye toplu WhatsApp gönderilecek. Devam edilsin mi?`)) {
+                return;
+            }
+            
+            // Her müşteri için ilk ödemeyi kullan
+            const customerMap = new Map();
+            bulkWhatsAppRecipients.forEach(p => {
+                const key = `${p.name}_${p.phone}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, p);
+                }
+            });
+            
+            let sentCount = 0;
+            customerMap.forEach(payment => {
+                const dueDate = new Date(payment.dueDate);
+                const today = new Date();
+                const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+                
+                let message = template
+                    .replace(/{MÜŞTERİ}/g, payment.name)
+                    .replace(/{TUTAR}/g, payment.amount.toLocaleString('tr-TR'))
+                    .replace(/{VADE}/g, dueDate.toLocaleDateString('tr-TR'))
+                    .replace(/{EVRAK}/g, payment.docNo || '-')
+                    .replace(/{GÜN}/g, diffDays);
+                
+                const phone = payment.phone.replace(/\D/g, '');
+                const whatsappUrl = `https://wa.me/90${phone}?text=${encodeURIComponent(message)}`;
+                
+                // Her mesaj için 1 saniye bekle (spam önleme)
+                setTimeout(() => {
+                    window.open(whatsappUrl, '_blank');
+                    sentCount++;
+                    
+                    if (sentCount === customerMap.size) {
+                        showNotification(`✅ ${sentCount} WhatsApp mesajı gönderildi!`);
+                        closeBulkWhatsAppModal();
+                    }
+                }, sentCount * 1000);
+            });
+        }
+
         // BULK CUSTOMER IMPORT FUNCTIONS
         let bulkCustomerData = [];
         let bulkCustomerColumns = {};
@@ -6360,6 +7527,7 @@
         // CUSTOMER ACCORDION FUNCTIONS
         let groupedCustomersData = [];
         let expandedCustomers = new Set();
+        let currentCompanyId = null; // Aktif firma ID'si
 
         async function loadAndRenderCustomers() {
             try {
@@ -6507,12 +7675,15 @@
                         <!-- Ödeme Detayları (Accordion) -->
                         <div style="display: ${isExpanded ? 'block' : 'none'}; background: #f8f9fa; padding: 15px; border-top: 2px solid #e0e0e0;">
                             <!-- Müşteri İşlem Butonları -->
-                            <div style="display: flex; gap: 10px; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px;">
-                                <button class="btn-sm btn-secondary" onclick="openEditCustomerModal('${customer.name}', '${customer.phone}'); event.stopPropagation();" style="flex: 1;">
-                                    ✏️ Müşteri Bilgilerini Düzenle
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px; flex-wrap: wrap;">
+                                <button class="btn-sm btn-secondary" onclick="openEditCustomerModal('${customer.name}', '${customer.phone}'); event.stopPropagation();" style="flex: 1; min-width: 150px;">
+                                    ✏️ Bilgileri Düzenle
                                 </button>
-                                <button class="btn-sm" style="background: #25D366; color: white; flex: 1;" onclick="sendWhatsAppToCustomer('${customer.phone}', '${customer.name}'); event.stopPropagation();">
-                                    💬 WhatsApp Gönder
+                                <button class="btn-sm" style="background: #25D366; color: white; flex: 1; min-width: 150px;" onclick="sendWhatsAppToCustomer('${customer.phone}', '${customer.name}'); event.stopPropagation();">
+                                    💬 WhatsApp
+                                </button>
+                                <button class="btn-sm" style="background: #667eea; color: white; flex: 1; min-width: 150px;" onclick="openCustomerTimeline('${customer.name}', '${customer.phone}'); event.stopPropagation();">
+                                    📜 Notlar & Geçmiş
                                 </button>
                             </div>
                             
@@ -6895,19 +8066,29 @@
         async function loadAllCustomersForImport() {
             try {
                 const snapshot = await getCustomersRef().get();
-                const customers = [];
+                const customerMap = new Map();
+                
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    customers.push({
-                        id: doc.id,
-                        name: data.name,
-                        phone: data.phone
-                    });
+                    const key = `${data.name}_${data.phone}`.toLowerCase();
+                    
+                    // Müşteri profili varsa ekle (defaultDueDays ve defaultPaymentType ile)
+                    if (!customerMap.has(key) || data.defaultDueDays > 0) {
+                        customerMap.set(key, {
+                            id: doc.id,
+                            name: data.name,
+                            phone: data.phone,
+                            defaultDueDays: data.defaultDueDays || 0,
+                            defaultPaymentType: data.defaultPaymentType || ''
+                        });
+                    }
                 });
-                return customers;
+                
+                console.log(`📊 Loaded ${customerMap.size} customer profiles for import`);
+                return customerMap;
             } catch (error) {
                 console.error('Load customers error:', error);
-                return [];
+                return new Map();
             }
         }
 
@@ -7113,7 +8294,31 @@
                         }
 
                         const cleanPhone = String(phone).replace(/\D/g, '');
-                        const dueDate = excelDateToISOString(dueDateValue);
+                        let dueDate = excelDateToISOString(dueDateValue);
+                        let paymentTypeToUse = 'Excel Import';
+                        let dueDaysUsed = 0;
+
+                        // MÜŞTERİ PROFİLİ KONTROLÜ - Vade hesaplama
+                        const customerKey = `${customerName}_${cleanPhone}`.toLowerCase();
+                        const customerProfile = existingCustomers.get(customerKey);
+                        
+                        if (customerProfile && customerProfile.defaultDueDays > 0) {
+                            // KAYITLI MÜŞTERİ - Profildeki vade günü kullan
+                            const invoiceDate = new Date(dueDate);
+                            invoiceDate.setDate(invoiceDate.getDate() + customerProfile.defaultDueDays);
+                            dueDate = invoiceDate.toISOString();
+                            paymentTypeToUse = customerProfile.defaultPaymentType || 'Kredi Kartı Taksit';
+                            dueDaysUsed = customerProfile.defaultDueDays;
+                            console.log(`📅 ${customerName}: Profil var → Fatura + ${dueDaysUsed} gün = ${dueDate.split('T')[0]}`);
+                        } else {
+                            // YENİ MÜŞTERİ - Varsayılan +10 gün Kredi Kartı Taksitli
+                            const invoiceDate = new Date(dueDate);
+                            invoiceDate.setDate(invoiceDate.getDate() + 10);
+                            dueDate = invoiceDate.toISOString();
+                            paymentTypeToUse = 'Kredi Kartı Taksit';
+                            dueDaysUsed = 10;
+                            console.log(`🆕 ${customerName}: Yeni müşteri → Varsayılan +10 gün = ${dueDate.split('T')[0]}`);
+                        }
 
                         // Ödeme kaydı oluştur
                         const paymentData = {
@@ -7122,7 +8327,7 @@
                             dueDate: dueDate,
                             amount: amount,
                             note: note ? `Excel Import: ${note}` : 'Excel Import',
-                            paymentType: 'Excel Import',
+                            paymentType: paymentTypeToUse,
                             status: 'pending',
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             createdBy: createdBy,
