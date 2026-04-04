@@ -844,7 +844,12 @@
 
             <!-- Ödeme Ekle -->
             <div id="add" class="content">
-                <h2 style="margin-bottom: 20px;">➕ Yeni Ödeme Ekle</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">➕ Yeni Ödeme Ekle</h2>
+                    <button onclick="openExcelImportModal()" class="btn btn-secondary" style="padding: 10px 20px; width: auto;">
+                        📊 Excel'den Toplu Aktar
+                    </button>
+                </div>
                 
                 <div class="form-group">
                     <label>Müşteri Ara / Seç *</label>
@@ -5163,6 +5168,548 @@
                 closePermissionsModal();
             }
         });
+        // EXCEL IMPORT FUNCTIONS
+        let excelData = [];
+        let excelColumns = [];
+
+        function openExcelImportModal() {
+            document.getElementById('excelImportModal').classList.add('show');
+            // Reset
+            document.getElementById('excelFileInput').value = '';
+            document.getElementById('excelColumnsMapping').style.display = 'none';
+            document.getElementById('excelPreview').style.display = 'none';
+            excelData = [];
+            excelColumns = [];
+        }
+
+        function closeExcelImportModal() {
+            document.getElementById('excelImportModal').classList.remove('show');
+        }
+
+        // Excel dosyası seçildiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('excelFileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleExcelFile);
+            }
+        });
+
+        async function handleExcelFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Dosya boyutu kontrolü (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('❌ Dosya çok büyük! Maksimum 5MB olmalıdır.');
+                return;
+            }
+
+            try {
+                showNotification('📊 Excel dosyası okunuyor...');
+
+                const data = await file.arrayBuffer();
+                
+                // SheetJS kütüphanesini dinamik yükle
+                if (!window.XLSX) {
+                    await loadSheetJS();
+                }
+
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                if (jsonData.length < 2) {
+                    alert('❌ Excel dosyası boş veya geçersiz!');
+                    return;
+                }
+
+                // İlk satırı sütun isimleri olarak al
+                excelColumns = jsonData[0];
+                
+                // Veriyi obje dizisine çevir
+                excelData = [];
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = {};
+                    jsonData[i].forEach((cell, index) => {
+                        row[excelColumns[index]] = cell;
+                    });
+                    // Boş satırları atla
+                    if (Object.values(row).some(v => v !== undefined && v !== '')) {
+                        excelData.push(row);
+                    }
+                }
+
+                console.log('Excel data:', excelData);
+                console.log('Columns:', excelColumns);
+
+                // Sütun eşleştirme alanını göster
+                populateColumnMappings();
+                document.getElementById('excelColumnsMapping').style.display = 'block';
+                showNotification(`✅ ${excelData.length} satır okundu!`);
+
+            } catch (error) {
+                console.error('Excel read error:', error);
+                alert('❌ Excel dosyası okunamadı! Hata: ' + error.message);
+            }
+        }
+
+        function loadSheetJS() {
+            return new Promise((resolve, reject) => {
+                if (window.XLSX) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        function populateColumnMappings() {
+            const selects = [
+                'columnCustomerName',
+                'columnPhone',
+                'columnAmount',
+                'columnDueDate',
+                'columnDocNo',
+                'columnNote'
+            ];
+
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+
+                // Mevcut seçenekleri temizle (ilk option hariç)
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Sütunları ekle
+                excelColumns.forEach((col, index) => {
+                    if (col) {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = col;
+                        select.appendChild(option);
+                    }
+                });
+            });
+
+            // Otomatik eşleştirme dene
+            autoMapColumns();
+        }
+
+        function autoMapColumns() {
+            const mappings = {
+                'columnCustomerName': ['hesap adı', 'müşteri', 'customer', 'name', 'isim', 'ad'],
+                'columnPhone': ['telefon', 'phone', 'tel'],
+                'columnAmount': ['tutar', 'meblağ', 'amount', 'bakiye'],
+                'columnDueDate': ['vade', 'tarih', 'date', 'due'],
+                'columnDocNo': ['evrak', 'no', 'belge', 'document'],
+                'columnNote': ['not', 'note', 'açıklama']
+            };
+
+            Object.entries(mappings).forEach(([selectId, keywords]) => {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+
+                // Sütun isimlerinde keyword ara
+                const matchIndex = excelColumns.findIndex(col => 
+                    col && keywords.some(kw => 
+                        col.toLowerCase().includes(kw)
+                    )
+                );
+
+                if (matchIndex >= 0) {
+                    select.value = matchIndex;
+                }
+            });
+        }
+
     </script>
+
+    <script>
+        // EXCEL PREVIEW & IMPORT FUNCTIONS
+
+        async function previewExcelData() {
+            const customerNameCol = document.getElementById('columnCustomerName').value;
+            const phoneCol = document.getElementById('columnPhone').value;
+            const amountCol = document.getElementById('columnAmount').value;
+            const dueDateCol = document.getElementById('columnDueDate').value;
+            const docNoCol = document.getElementById('columnDocNo').value;
+            const noteCol = document.getElementById('columnNote').value;
+
+            if (!customerNameCol || !amountCol || !dueDateCol) {
+                alert('❌ Lütfen en az Müşteri Adı, Tutar ve Vade Tarihi sütunlarını seçin!');
+                return;
+            }
+
+            try {
+                showNotification('🔍 Veriler hazırlanıyor...');
+
+                // Mevcut müşterileri yükle
+                const existingCustomers = await loadAllCustomersForImport();
+
+                let previewHTML = '';
+                let newCustomerCount = 0;
+                let existingCustomerCount = 0;
+                let totalAmount = 0;
+
+                const previewData = [];
+
+                for (let i = 0; i < Math.min(excelData.length, 50); i++) {  // İlk 50 satır
+                    const row = excelData[i];
+                    
+                    const customerName = row[excelColumns[customerNameCol]];
+                    const phone = phoneCol ? (row[excelColumns[phoneCol]] || '0000000000') : '0000000000';
+                    const amount = parseFloat(row[excelColumns[amountCol]]) || 0;
+                    const dueDate = row[excelColumns[dueDateCol]];
+                    const docNo = docNoCol ? row[excelColumns[docNoCol]] : '';
+                    const note = noteCol ? row[excelColumns[noteCol]] : '';
+
+                    if (!customerName || amount === 0) continue;
+
+                    // Müşteri kontrolü
+                    const cleanPhone = String(phone).replace(/\D/g, '');
+                    const existing = existingCustomers.find(c => 
+                        c.name.toLowerCase() === customerName.toLowerCase() ||
+                        (cleanPhone && c.phone && c.phone.replace(/\D/g, '') === cleanPhone)
+                    );
+
+                    const isNew = !existing;
+                    if (isNew) newCustomerCount++;
+                    else existingCustomerCount++;
+
+                    totalAmount += amount;
+
+                    previewData.push({
+                        customerName,
+                        phone: cleanPhone,
+                        amount,
+                        dueDate,
+                        docNo,
+                        note,
+                        isNew
+                    });
+
+                    const dueDateFormatted = formatExcelDate(dueDate);
+
+                    previewHTML += `
+                        <div style="padding: 12px; margin-bottom: 8px; background: white; border-radius: 8px; border-left: 4px solid ${isNew ? '#ffc107' : '#28a745'};">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1;">
+                                    <strong>${customerName}</strong>
+                                    ${isNew ? '<span style="background: #ffc107; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">YENI</span>' : '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">MEVCUT</span>'}
+                                    <br>
+                                    <small style="color: #666;">
+                                        📱 ${phone} • 💰 ${amount.toLocaleString('tr-TR')}₺ • 📅 ${dueDateFormatted}
+                                        ${docNo ? `<br>📄 ${docNo}` : ''}
+                                        ${note ? `<br>📝 ${note}` : ''}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('excelPreviewContent').innerHTML = previewHTML;
+                
+                document.getElementById('excelSummary').innerHTML = `
+                    <strong style="font-size: 16px;">📊 Özet:</strong><br>
+                    <div style="margin-top: 10px;">
+                        • Toplam: <strong>${excelData.length} kayıt</strong><br>
+                        • 🆕 Yeni müşteri: <strong>${newCustomerCount}</strong><br>
+                        • ✅ Mevcut müşteri: <strong>${existingCustomerCount}</strong><br>
+                        • 💰 Toplam tutar: <strong>${totalAmount.toLocaleString('tr-TR')}₺</strong>
+                    </div>
+                `;
+
+                document.getElementById('excelPreview').style.display = 'block';
+                showNotification('✅ Önizleme hazır!');
+
+            } catch (error) {
+                console.error('Preview error:', error);
+                alert('❌ Önizleme oluşturulamadı: ' + error.message);
+            }
+        }
+
+        async function loadAllCustomersForImport() {
+            try {
+                const snapshot = await getCustomersRef().get();
+                const customers = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    customers.push({
+                        id: doc.id,
+                        name: data.name,
+                        phone: data.phone
+                    });
+                });
+                return customers;
+            } catch (error) {
+                console.error('Load customers error:', error);
+                return [];
+            }
+        }
+
+        function formatExcelDate(dateValue) {
+            if (!dateValue) return 'Tarih yok';
+            
+            // Excel serial date (sayı) ise
+            if (typeof dateValue === 'number') {
+                const date = new Date((dateValue - 25569) * 86400 * 1000);
+                return date.toLocaleDateString('tr-TR');
+            }
+            
+            // String ise
+            if (typeof dateValue === 'string') {
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('tr-TR');
+                }
+                return dateValue;
+            }
+            
+            // Date object ise
+            if (dateValue instanceof Date) {
+                return dateValue.toLocaleDateString('tr-TR');
+            }
+            
+            return String(dateValue);
+        }
+
+        function excelDateToISOString(dateValue) {
+            if (!dateValue) return null;
+            
+            // Excel serial date
+            if (typeof dateValue === 'number') {
+                const date = new Date((dateValue - 25569) * 86400 * 1000);
+                return date.toISOString().split('T')[0];
+            }
+            
+            // String
+            if (typeof dateValue === 'string') {
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString().split('T')[0];
+                }
+                return dateValue;
+            }
+            
+            // Date object
+            if (dateValue instanceof Date) {
+                return dateValue.toISOString().split('T')[0];
+            }
+            
+            return null;
+        }
+
+    </script>
+    <!-- Excel Import Modal -->
+    <div id="excelImportModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">📊 Excel'den Toplu Ödeme Aktarımı</h3>
+                <button class="close-modal" onclick="closeExcelImportModal()">×</button>
+            </div>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <strong>ℹ️ Nasıl Çalışır?</strong>
+                <ul style="margin: 10px 0 0 20px; font-size: 14px;">
+                    <li>Excel dosyanızı yükleyin</li>
+                    <li>Sütunları eşleştirin (Müşteri Adı, Telefon, Tutar, Vade Tarihi)</li>
+                    <li>Önizlemeyi kontrol edin</li>
+                    <li>Sistem otomatik olarak:
+                        <ul style="margin-left: 20px;">
+                            <li>✅ Mevcut müşterilere ödeme ekler</li>
+                            <li>🆕 Yeni müşteriler oluşturur</li>
+                            <li>⚠️ Duplicate kayıtları kontrol eder</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="form-group">
+                <label>Excel Dosyası Seçin (.xls, .xlsx, .csv)</label>
+                <input type="file" id="excelFileInput" accept=".xls,.xlsx,.csv" style="padding: 10px;">
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Maksimum dosya boyutu: 5MB
+                </small>
+            </div>
+
+            <div id="excelColumnsMapping" style="display: none; margin-top: 20px;">
+                <h4 style="margin-bottom: 15px;">🔗 Sütun Eşleştirme</h4>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                    <div class="form-group">
+                        <label>Müşteri Adı Sütunu *</label>
+                        <select id="columnCustomerName" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon Sütunu</label>
+                        <select id="columnPhone" class="form-control">
+                            <option value="">Yok (varsayılan: 0000000000)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tutar Sütunu *</label>
+                        <select id="columnAmount" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Vade Tarihi Sütunu *</label>
+                        <select id="columnDueDate" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Evrak No Sütunu (Duplicate kontrol için)</label>
+                        <select id="columnDocNo" class="form-control">
+                            <option value="">Yok</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Not Sütunu</label>
+                        <select id="columnNote" class="form-control">
+                            <option value="">Yok</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button onclick="previewExcelData()" class="btn btn-primary" style="margin-top: 15px;">
+                    👁️ Önizleme Göster
+                </button>
+            </div>
+
+            <div id="excelPreview" style="display: none; margin-top: 20px;">
+                <h4 style="margin-bottom: 15px;">📋 Önizleme</h4>
+                <div id="excelPreviewContent" style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 10px;"></div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 10px; border-left: 4px solid #28a745;">
+                    <div id="excelSummary"></div>
+                </div>
+
+                <button onclick="importExcelData()" class="btn btn-success" style="margin-top: 15px; width: 100%;">
+                    ✅ Tümünü Aktar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    </script>
+
+    <script>
+        // EXCEL FINAL IMPORT FUNCTION
+
+        async function importExcelData() {
+            if (!confirm(`${excelData.length} kayıt aktarılacak. Devam etmek istiyor musunuz?`)) {
+                return;
+            }
+
+            const customerNameCol = document.getElementById('columnCustomerName').value;
+            const phoneCol = document.getElementById('columnPhone').value;
+            const amountCol = document.getElementById('columnAmount').value;
+            const dueDateCol = document.getElementById('columnDueDate').value;
+            const docNoCol = document.getElementById('columnDocNo').value;
+            const noteCol = document.getElementById('columnNote').value;
+
+            try {
+                showNotification('⏳ Veriler aktarılıyor... Lütfen bekleyin!');
+                
+                const existingCustomers = await loadAllCustomersForImport();
+                const userProfile = (await getUserRef().get()).data();
+                const now = new Date().toISOString();
+                const createdBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+
+                let successCount = 0;
+                let errorCount = 0;
+                const batch = window.db.batch();
+                let batchCount = 0;
+
+                for (const row of excelData) {
+                    try {
+                        const customerName = row[excelColumns[customerNameCol]];
+                        const phone = phoneCol ? (row[excelColumns[phoneCol]] || '0000000000') : '0000000000';
+                        const amount = parseFloat(row[excelColumns[amountCol]]) || 0;
+                        const dueDateValue = row[excelColumns[dueDateCol]];
+                        const docNo = docNoCol ? row[excelColumns[docNoCol]] : '';
+                        const note = noteCol ? row[excelColumns[noteCol]] : '';
+
+                        if (!customerName || amount === 0 || !dueDateValue) {
+                            errorCount++;
+                            continue;
+                        }
+
+                        const cleanPhone = String(phone).replace(/\D/g, '');
+                        const dueDate = excelDateToISOString(dueDateValue);
+
+                        // Ödeme kaydı oluştur
+                        const paymentData = {
+                            name: customerName,
+                            phone: cleanPhone,
+                            dueDate: dueDate,
+                            amount: amount,
+                            note: note ? `Excel Import: ${note}` : 'Excel Import',
+                            paymentType: 'Excel Import',
+                            status: 'pending',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdBy: createdBy,
+                            lastModifiedBy: createdBy,
+                            paidDate: null,
+                            excelImport: true,
+                            docNo: docNo || null,
+                            activityLog: [{
+                                action: 'created',
+                                by: createdBy,
+                                timestamp: now
+                            }]
+                        };
+
+                        const docRef = getCustomersRef().doc();
+                        batch.set(docRef, paymentData);
+                        
+                        batchCount++;
+                        successCount++;
+
+                        // Firestore batch limiti 500
+                        if (batchCount >= 450) {
+                            await batch.commit();
+                            batchCount = 0;
+                            showNotification(`⏳ ${successCount}/${excelData.length} aktarıldı...`);
+                        }
+
+                    } catch (rowError) {
+                        console.error('Row error:', rowError);
+                        errorCount++;
+                    }
+                }
+
+                // Kalan batch'i commit et
+                if (batchCount > 0) {
+                    await batch.commit();
+                }
+
+                closeExcelImportModal();
+                await loadCustomers();
+
+                const message = `✅ Excel aktarımı tamamlandı!\n\n` +
+                    `✔️ Başarılı: ${successCount} kayıt\n` +
+                    `${errorCount > 0 ? `❌ Hatalı: ${errorCount} kayıt\n` : ''}`;
+                
+                alert(message);
+                showNotification('✅ Excel aktarımı tamamlandı!');
+
+            } catch (error) {
+                console.error('Import error:', error);
+                alert('❌ Aktarım sırasında hata oluştu: ' + error.message);
+            }
+        }
+
+    </script>
+
 </body>
 </html>
