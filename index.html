@@ -2540,9 +2540,16 @@ Atlaspet Pet Products</textarea>
         }
 
         function getCustomersRef() {
-            const companyRef = getSelectedCompanyRef();
-            if (!companyRef) return null;
-            return companyRef.collection('customers');
+            if (!currentCompanyId) {
+                console.warn('No company selected, using legacy path');
+                // Fallback: Eski sistem için
+                return window.db.collection('users')
+                    .doc(window.auth.currentUser.uid)
+                    .collection('companies')
+                    .doc('default')
+                    .collection('customers');
+            }
+            return window.db.collection('companies').doc(currentCompanyId).collection('customers');
         }
 
         function getPaymentsRef() {
@@ -3599,75 +3606,11 @@ Atlaspet Pet Products</textarea>
             dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
         }
 
+        /* OLD MULTI-COMPANY SYSTEM - REPLACED
         async function loadUserCompanies() {
-            try {
-                console.log('📂 Loading user companies...');
-                allCompaniesList = [];
-                
-                // 1. Kendi firmalarını yükle
-                const ownCompaniesSnapshot = await getCompaniesRef().get();
-                console.log('🏢 Own companies:', ownCompaniesSnapshot.size);
-                
-                ownCompaniesSnapshot.forEach(doc => {
-                    allCompaniesList.push({
-                        id: doc.id,
-                        ...doc.data(),
-                        isShared: false  // Kendi firması
-                    });
-                });
-
-                // 2. Paylaşılan firmaları yükle
-                const sharedCompaniesSnapshot = await window.db.collection('users')
-                    .doc(window.auth.currentUser.uid)
-                    .collection('sharedCompanies')
-                    .get();
-                
-                console.log('🤝 Shared companies:', sharedCompaniesSnapshot.size);
-
-                for (const sharedDoc of sharedCompaniesSnapshot.docs) {
-                    const sharedData = sharedDoc.data();
-                    console.log('📋 Shared company data:', sharedData);
-                    
-                    // Firma bilgilerini al
-                    try {
-                        const companyDoc = await window.db.collection('users')
-                            .doc(sharedData.ownerId)
-                            .collection('companies')
-                            .doc(sharedData.companyId)
-                            .get();
-                        
-                        if (companyDoc.exists) {
-                            const companyData = companyDoc.data();
-                            allCompaniesList.push({
-                                id: sharedDoc.id,  // sharedCompanies doc ID
-                                companyId: sharedData.companyId,  // Gerçek company ID
-                                name: sharedData.companyName || companyData.name,
-                                phone: companyData.phone,
-                                logo: companyData.logo,
-                                isShared: true,  // Paylaşılan firma
-                                ownerId: sharedData.ownerId,
-                                ownerEmail: sharedData.ownerEmail,
-                                permissions: sharedData.permissions
-                            });
-                            console.log('✅ Added shared company:', sharedData.companyName);
-                        }
-                    } catch (error) {
-                        console.error('Error loading shared company:', error);
-                    }
-                }
-
-                console.log('📊 Total companies loaded:', allCompaniesList.length);
-
-                renderCompanyDropdown();
-
-                // Eğer seçili firma yoksa ve firma varsa ilkini seç
-                if (!selectedCompanyId && allCompaniesList.length > 0) {
-                    await selectCompany(allCompaniesList[0].id);
-                }
-            } catch (error) {
-                console.error('Load companies error:', error);
-            }
+            // ... eski kod ...
         }
+        */
 
         function renderCompanyDropdown() {
             const container = document.getElementById('companyList');
@@ -6364,10 +6307,40 @@ Atlaspet Pet Products</textarea>
                     companies.push({ id: doc.id, ...doc.data() });
                 });
                 
+                console.log(`📊 ${companies.length} firma bulundu`);
+                
+                // Eğer hiç firma yoksa, default oluştur
+                if (companies.length === 0) {
+                    console.log('📝 İlk firma oluşturuluyor...');
+                    const defaultCompanyRef = await window.db.collection('companies').add({
+                        name: 'Şirketim',
+                        contact: '',
+                        ownerId: userId,
+                        members: [userId],
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdBy: window.auth.currentUser.email
+                    });
+                    
+                    companies.push({
+                        id: defaultCompanyRef.id,
+                        name: 'Şirketim'
+                    });
+                    
+                    currentCompanyId = defaultCompanyRef.id;
+                    
+                    // Kullanıcı dökümanını güncelle
+                    await window.db.collection('users').doc(userId).set({
+                        email: window.auth.currentUser.email,
+                        activeCompanyId: defaultCompanyRef.id
+                    }, { merge: true });
+                }
+                
                 // Dropdown'u doldur
                 const select = document.getElementById('activeCompanySelect');
-                select.innerHTML = '<option value="">Firma seçin...</option>' +
-                    companies.map(c => `<option value="${c.id}" ${c.id === userData?.activeCompanyId ? 'selected' : ''}>${c.name}</option>`).join('');
+                if (select) {
+                    select.innerHTML = '<option value="">Firma seçin...</option>' +
+                        companies.map(c => `<option value="${c.id}" ${c.id === userData?.activeCompanyId ? 'selected' : ''}>${c.name}</option>`).join('');
+                }
                 
                 // Aktif firmayı set et
                 if (userData?.activeCompanyId) {
@@ -6375,15 +6348,18 @@ Atlaspet Pet Products</textarea>
                 } else if (companies.length > 0) {
                     // İlk firmayı aktif yap
                     currentCompanyId = companies[0].id;
-                    await window.db.collection('users').doc(userId).update({
+                    await window.db.collection('users').doc(userId).set({
                         activeCompanyId: currentCompanyId
-                    });
+                    }, { merge: true });
                 }
                 
+                console.log(`✅ Aktif firma: ${currentCompanyId}`);
                 return companies;
                 
             } catch (error) {
-                console.error('Load companies error:', error);
+                console.error('❌ Load companies error:', error);
+                // Fallback
+                currentCompanyId = null;
                 return [];
             }
         }
@@ -6461,18 +6437,6 @@ Atlaspet Pet Products</textarea>
                 console.error('Create company error:', error);
                 alert('❌ Firma oluşturulamadı: ' + error.message);
             }
-        }
-
-        // Firestore referanslarını firma bazlı yap
-        function getCustomersRef() {
-            if (!currentCompanyId) {
-                throw new Error('Aktif firma seçilmemiş!');
-            }
-            return window.db.collection('companies').doc(currentCompanyId).collection('customers');
-        }
-
-        function getUserRef() {
-            return window.db.collection('users').doc(window.auth.currentUser.uid);
         }
 
         // CUSTOMER TIMELINE & NOTES FUNCTIONS
