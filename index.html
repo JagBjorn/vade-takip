@@ -5426,6 +5426,7 @@
 
         async function loadHistory() {
             try {
+                console.log('📜 Loading history...');
                 const snapshot = await getCustomersRef().get();
                 historyData = [];
                 
@@ -5439,10 +5440,27 @@
                     }
                 });
 
+                console.log(`📊 Found ${historyData.length} history records`);
+                console.log('Paid:', historyData.filter(p => p.status === 'paid').length);
+                console.log('Deleted:', historyData.filter(p => p.isDeleted).length);
+
                 // Tarihe göre sırala (yeniden eskiye)
                 historyData.sort((a, b) => {
-                    const dateA = new Date(a.paidDate || a.deletedAt || a.createdAt);
-                    const dateB = new Date(b.paidDate || b.deletedAt || b.createdAt);
+                    // Timestamp'leri Date'e çevir
+                    const getDate = (item) => {
+                        let date = null;
+                        if (item.paidDate) {
+                            date = item.paidDate.toDate ? item.paidDate.toDate() : new Date(item.paidDate);
+                        } else if (item.deletedAt) {
+                            date = new Date(item.deletedAt);
+                        } else if (item.createdAt) {
+                            date = item.createdAt.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
+                        }
+                        return date || new Date(0);
+                    };
+                    
+                    const dateA = getDate(a);
+                    const dateB = getDate(b);
                     return dateB - dateA;
                 });
 
@@ -5515,7 +5533,18 @@
             // Tarih filtreleme
             if (startDate || endDate) {
                 filtered = filtered.filter(p => {
-                    const paymentDate = new Date(p.paidDate || p.deletedAt || p.createdAt);
+                    // Timestamp'i Date'e çevir
+                    let paymentDate;
+                    if (p.paidDate) {
+                        paymentDate = p.paidDate.toDate ? p.paidDate.toDate() : new Date(p.paidDate);
+                    } else if (p.deletedAt) {
+                        paymentDate = new Date(p.deletedAt);
+                    } else if (p.createdAt) {
+                        paymentDate = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+                    } else {
+                        paymentDate = new Date(0);
+                    }
+                    
                     const start = startDate ? new Date(startDate) : null;
                     const end = endDate ? new Date(endDate) : null;
                     
@@ -5529,6 +5558,7 @@
         }
 
         function renderHistoryList(payments) {
+            console.log(`🎨 Rendering ${payments.length} payments in history`);
             const container = document.getElementById('historyList');
             
             if (payments.length === 0) {
