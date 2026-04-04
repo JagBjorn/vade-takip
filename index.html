@@ -967,7 +967,12 @@
                     <button class="filter-btn" onclick="filterByStatus('paid')">Ödenenler</button>
                 </div>
 
-                <button class="btn btn-success" onclick="exportToExcel()" style="margin-bottom: 20px;">📥 Excel'e Aktar</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="exportToExcel()" style="flex: 1; min-width: 150px;">📥 Excel'e Aktar</button>
+                    <button class="btn" onclick="toggleBulkSelection()" id="bulkSelectBtn" style="flex: 1; min-width: 150px; background: #667eea;">☑️ Toplu Seç</button>
+                    <button class="btn btn-danger" onclick="bulkDeletePayments()" id="bulkDeleteBtn" style="flex: 1; min-width: 150px; display: none;">🗑️ Seçilenleri Sil</button>
+                    <button class="btn btn-success" onclick="bulkMarkAsPaid()" id="bulkPaidBtn" style="flex: 1; min-width: 150px; display: none;">✅ Seçilenleri Öde</button>
+                </div>
 
                 <div id="customerList" class="customer-list loading">Yükleniyor</div>
             </div>
@@ -4063,8 +4068,12 @@
         function renderCustomers(customers) {
             const container = document.getElementById('customerList');
             
-            // Sadece gerçek ödemeleri filtrele (isCustomerOnly olmayan)
-            const paymentsOnly = customers.filter(c => !c.isCustomerOnly && c.status !== 'no_payment');
+            // Sadece gerçek ödemeleri filtrele (isCustomerOnly olmayan + aktif)
+            const paymentsOnly = customers.filter(c => 
+                !c.isCustomerOnly && 
+                c.status !== 'no_payment' &&
+                !c.isDeleted  // Silinenleri atla
+            );
             
             if (paymentsOnly.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #666;">Henüz ödeme eklenmemiş</p>';
@@ -4145,8 +4154,9 @@
 
                 return `
                     <div class="${cardClass}" data-customer-id="${customer.id}">
-                        <div class="customer-header">
-                            <div class="customer-name">${customer.name}</div>
+                        <div class="customer-header" style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" class="bulk-checkbox" style="display: none; width: 20px; height: 20px; cursor: pointer;" onchange="togglePaymentSelection('${customer.id}', this)">
+                            <div class="customer-name" style="flex: 1;">${customer.name}</div>
                             ${statusBadge}
                         </div>
                         <div class="customer-info">
@@ -5042,6 +5052,164 @@
             filterCustomers();
         }
 
+        // BULK OPERATIONS
+        let bulkSelectionMode = false;
+        let selectedPayments = new Set();
+
+        function toggleBulkSelection() {
+            bulkSelectionMode = !bulkSelectionMode;
+            selectedPayments.clear();
+            
+            const bulkBtn = document.getElementById('bulkSelectBtn');
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            const paidBtn = document.getElementById('bulkPaidBtn');
+            
+            if (bulkSelectionMode) {
+                bulkBtn.textContent = '❌ İptal';
+                bulkBtn.style.background = '#dc3545';
+                deleteBtn.style.display = 'block';
+                paidBtn.style.display = 'block';
+                
+                // Checkboxları göster
+                document.querySelectorAll('.bulk-checkbox').forEach(cb => {
+                    cb.style.display = 'block';
+                });
+            } else {
+                bulkBtn.textContent = '☑️ Toplu Seç';
+                bulkBtn.style.background = '#667eea';
+                deleteBtn.style.display = 'none';
+                paidBtn.style.display = 'none';
+                
+                // Checkboxları gizle
+                document.querySelectorAll('.bulk-checkbox').forEach(cb => {
+                    cb.style.display = 'none';
+                    cb.checked = false;
+                });
+            }
+            
+            updateBulkButtonText();
+        }
+
+        function togglePaymentSelection(paymentId, checkbox) {
+            if (checkbox.checked) {
+                selectedPayments.add(paymentId);
+            } else {
+                selectedPayments.delete(paymentId);
+            }
+            updateBulkButtonText();
+        }
+
+        function updateBulkButtonText() {
+            const count = selectedPayments.size;
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            const paidBtn = document.getElementById('bulkPaidBtn');
+            
+            if (count > 0) {
+                deleteBtn.textContent = `🗑️ ${count} Ödemeyi Sil`;
+                paidBtn.textContent = `✅ ${count} Ödemeyi Öde`;
+            } else {
+                deleteBtn.textContent = '🗑️ Seçilenleri Sil';
+                paidBtn.textContent = '✅ Seçilenleri Öde';
+            }
+        }
+
+        async function bulkDeletePayments() {
+            if (selectedPayments.size === 0) {
+                alert('❌ Lütfen en az bir ödeme seçin!');
+                return;
+            }
+
+            if (!confirm(`⚠️ ${selectedPayments.size} ödeme silinecek. Devam edilsin mi?`)) {
+                return;
+            }
+
+            try {
+                const userProfile = (await getUserRef().get()).data();
+                const now = new Date().toISOString();
+                const batch = window.db.batch();
+                
+                selectedPayments.forEach(paymentId => {
+                    const ref = getCustomersRef().doc(paymentId);
+                    batch.update(ref, {
+                        isDeleted: true,
+                        deletedAt: now,
+                        deletedBy: {
+                            userId: window.auth.currentUser.uid,
+                            email: window.auth.currentUser.email,
+                            fullName: userProfile?.fullName || 'İsimsiz'
+                        }
+                    });
+                });
+
+                await batch.commit();
+                showNotification(`✅ ${selectedPayments.size} ödeme silindi`);
+                
+                // Reset
+                selectedPayments.clear();
+                toggleBulkSelection();
+                
+                // Refresh
+                updateDashboard();
+
+            } catch (error) {
+                console.error('Bulk delete error:', error);
+                alert('❌ Toplu silme hatası: ' + error.message);
+            }
+        }
+
+        async function bulkMarkAsPaid() {
+            if (selectedPayments.size === 0) {
+                alert('❌ Lütfen en az bir ödeme seçin!');
+                return;
+            }
+
+            if (!confirm(`✅ ${selectedPayments.size} ödeme ödenmiş olarak işaretlenecek. Devam edilsin mi?`)) {
+                return;
+            }
+
+            try {
+                const userProfile = (await getUserRef().get()).data();
+                const now = new Date().toISOString();
+                const paidBy = {
+                    userId: window.auth.currentUser.uid,
+                    email: window.auth.currentUser.email,
+                    fullName: userProfile?.fullName || 'İsimsiz',
+                    timestamp: now
+                };
+                
+                const batch = window.db.batch();
+                
+                selectedPayments.forEach(paymentId => {
+                    const ref = getCustomersRef().doc(paymentId);
+                    batch.update(ref, {
+                        status: 'paid',
+                        paidDate: firebase.firestore.FieldValue.serverTimestamp(),
+                        paidBy: paidBy,
+                        lastModifiedBy: paidBy,
+                        activityLog: firebase.firestore.FieldValue.arrayUnion({
+                            action: 'marked_as_paid',
+                            by: paidBy,
+                            timestamp: now
+                        })
+                    });
+                });
+
+                await batch.commit();
+                showNotification(`✅ ${selectedPayments.size} ödeme tamamlandı`);
+                
+                // Reset
+                selectedPayments.clear();
+                toggleBulkSelection();
+                
+                // Refresh
+                updateDashboard();
+
+            } catch (error) {
+                console.error('Bulk paid error:', error);
+                alert('❌ Toplu ödeme hatası: ' + error.message);
+            }
+        }
+
         function filterCustomers() {
             const searchInput = document.getElementById('searchInput');
             const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
@@ -5374,8 +5542,19 @@
                 const isPaid = payment.status === 'paid';
                 const isDeleted = payment.isDeleted;
                 
+                // Timestamp'i Date'e çevir
+                let paidDateStr = '';
+                if (isPaid && payment.paidDate) {
+                    if (payment.paidDate.toDate) {
+                        // Firestore Timestamp
+                        paidDateStr = formatDate(payment.paidDate.toDate().toISOString());
+                    } else if (typeof payment.paidDate === 'string') {
+                        paidDateStr = formatDate(payment.paidDate);
+                    }
+                }
+                
                 const displayDate = isPaid 
-                    ? formatDate(payment.paidDate) 
+                    ? (paidDateStr || formatDate(payment.createdAt))
                     : (isDeleted ? formatDate(payment.deletedAt) : formatDate(payment.createdAt));
 
                 const statusBadge = isPaid 
