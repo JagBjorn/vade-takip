@@ -2194,17 +2194,6 @@ Atlaspet Pet Products</textarea>
                 alert('❌ Müşteri eklenemedi: ' + error.message);
             }
         }
-                
-                // Modal'ı kapat
-                closeAddCustomerModal();
-                
-                // Müşteri listesini güncelle
-                await loadAllCustomersForSearch();
-            } catch (error) {
-                console.error(error);
-                alert('Müşteri eklenirken hata oluştu');
-            }
-        }
 
         async function saveCustomerEdit() {
             // Yetki kontrolü
@@ -2412,7 +2401,7 @@ Atlaspet Pet Products</textarea>
             loadAllScripts();
         }
 
-        function initializeFirebase() {
+        async function initializeFirebase() {
             console.log('initializeFirebase called');
             console.log('firebase defined?', typeof firebase !== 'undefined');
             
@@ -2472,7 +2461,7 @@ Atlaspet Pet Products</textarea>
 
         // Visibility Change Listener - Sayfa aktif olduğunda kontrol et
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && currentUser && selectedCompanyId) {
+            if (!document.hidden && currentUser && currentCompanyId) {
                 // Sayfa görünür hale geldiğinde verileri yenile
                 console.log('Page visible, checking for updates...');
                 // Bildirim scheduler'ı yeniden başlat
@@ -2527,13 +2516,13 @@ Atlaspet Pet Products</textarea>
             return getUserRef().collection('companies');
         }
 
+        /* DEPRECATED - Multi-company yeni yapısı kullanılıyor
         function getSelectedCompanyRef() {
             if (!selectedCompanyId) {
                 console.error('No company selected!');
                 return null;
             }
             
-            // Seçili firmayı bul
             const selectedCompany = allCompaniesList.find(c => c.id === selectedCompanyId);
             
             if (!selectedCompany) {
@@ -2541,19 +2530,18 @@ Atlaspet Pet Products</textarea>
                 return null;
             }
             
-            // EĞER PAYLAŞILAN FİRMAYSA - Owner'ın koleksiyonuna git
             if (selectedCompany.isShared) {
                 console.log('📂 Accessing shared company via owner:', selectedCompany.ownerId);
                 return window.db.collection('users')
                     .doc(selectedCompany.ownerId)
                     .collection('companies')
-                    .doc(selectedCompany.companyId);  // Gerçek company ID
+                    .doc(selectedCompany.companyId);
             }
             
-            // KENDİ FİRMASIYSA - Kendi koleksiyonuna git
             console.log('📂 Accessing own company:', selectedCompanyId);
             return getCompaniesRef().doc(selectedCompanyId);
         }
+        */
 
         function getCustomersRef() {
             if (!currentCompanyId) {
