@@ -3307,8 +3307,15 @@ Atlaspet Pet Products</textarea>
         //         window.senetRowCount = 1;
         // 
         //         function addSenetRow() {
-        ===== ESKİ SHARING SİSTEMİ SONU ===== */
+        //             window.senetRowCount++;
+        //             renderSenetList();
+        //         }
+        // ===== ESKİ SHARING SİSTEMİ SONU ===== */
 
+        // SENET FONKSİYONLARI - ATLAS PET BENZERİ ESNEK SİSTEM
+        window.senetRowCount = 1;
+
+        function addSenetRow() {
             window.senetRowCount++;
             renderSenetList();
         }
@@ -6244,8 +6251,19 @@ Atlaspet Pet Products</textarea>
         //                 const companiesSnapshot = await window.db.collection('companies')
         //                     .where('members', 'array-contains', userId)
         //                     .get();
-        ===== ESKİ SİSTEM SONU ===== */
+        // ===== ESKİ SİSTEM SONU ===== */
 
+        // MULTI-COMPANY FUNCTIONS (YENİ SİSTEM)
+        async function loadUserCompanies() {
+            try {
+                const userId = window.auth.currentUser.uid;
+                const userDoc = await window.db.collection('users').doc(userId).get();
+                const userData = userDoc.data();
+                
+                // Kullanıcının firmalarını getir
+                const companiesSnapshot = await window.db.collection('companies')
+                    .where('members', 'array-contains', userId)
+                    .get();
                 
                 const companies = [];
                 companiesSnapshot.forEach(doc => {
