@@ -2383,9 +2383,8 @@ Atlaspet Pet Products</textarea>
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 
-                // Pending invites kontrol et (hem login hem register için)
-                console.log('🔍 Checking pending invites for:', user.email);
-                await checkPendingInvites(user.email, user.uid);
+                // Pending invites kontrol et (eski sharing sistemi - devre dışı)
+                // await checkPendingInvites(user.email, user.uid);
                 
                 // İlk kurulum kontrolü
                 await checkFirstTimeSetup();
@@ -2560,8 +2559,8 @@ Atlaspet Pet Products</textarea>
                 });
                 console.log('✅ User profile saved to Firestore');
                 
-                // Pending invites kontrol et
-                await checkPendingInvites(email, result.user.uid);
+                // Pending invites kontrol et (eski sharing sistemi - devre dışı)
+                // await checkPendingInvites(email, result.user.uid);
                 
                 showNotification('✅ Kayıt başarılı!');
             } catch (error) {
@@ -2707,7 +2706,15 @@ Atlaspet Pet Products</textarea>
 
         // Initialize App - GLOBAL
         async function initializeApp() {
-            requestNotificationPermission();
+            // Bildirim izni (opsiyonel)
+            try {
+                if (typeof requestNotificationPermission === 'function') {
+                    requestNotificationPermission();
+                }
+            } catch (e) {
+                console.log('Notification permission skipped');
+            }
+            
             await loadUserCompanies(); // Firmaları yükle VE BEKLENİYOR
             updateUIBasedOnPermissions(); // Yetkilere göre UI güncelle
             loadCustomers();
@@ -3390,42 +3397,9 @@ Atlaspet Pet Products</textarea>
         // First Time Setup & Data Migration - GLOBAL
 
         async function checkFirstTimeSetup() {
-            try {
-                const companiesSnapshot = await getCompaniesRef().get();
-                
-                // Eğer hiç firma yoksa
-                if (companiesSnapshot.empty) {
-                    // Eski verileri kontrol et
-                    const oldCustomersRef = getUserRef().collection('customers');
-                    const oldCustomersSnapshot = await oldCustomersRef.get();
-                    
-                    if (!oldCustomersSnapshot.empty) {
-                        // Eski veriler var, taşı
-                        await migrateOldDataToCompany();
-                    } else {
-                        // İlk kullanıcı, firma oluşturmasını iste
-                        await promptCreateFirstCompany();
-                    }
-                } else {
-                    // Firmalar var, son seçili firmayı yükle
-                    const lastSelectedId = localStorage.getItem('selectedCompanyId_' + window.auth.currentUser.uid);
-                    
-                    if (lastSelectedId) {
-                        const companyExists = companiesSnapshot.docs.find(doc => doc.id === lastSelectedId);
-                        if (companyExists) {
-                            selectedCompanyId = lastSelectedId;
-                        } else {
-                            selectedCompanyId = companiesSnapshot.docs[0].id;
-                        }
-                    } else {
-                        selectedCompanyId = companiesSnapshot.docs[0].id;
-                    }
-                    
-                    await loadUserCompanies();
-                }
-            } catch (error) {
-                console.error('First time setup error:', error);
-            }
+            // Yeni multi-company sistemi otomatik firma oluşturuyor
+            // loadUserCompanies() içinde hallediliyor, burası boş kalabilir
+            console.log('✅ First time setup - handled by loadUserCompanies()');
         }
 
         /* ===== ESKİ MULTI-COMPANY SİSTEMİ - KULLANILMIYOR =====
@@ -5685,29 +5659,29 @@ Atlaspet Pet Products</textarea>
         //         }
         // 
         //         // Notifications
-        //         function requestNotificationPermission() {
-        //             if ('Notification' in window && Notification.permission === 'default') {
-        //                 Notification.requestPermission();
-        //             }
-        //         }
-        // 
-        //         function sendPushNotification(title, body, tag) {
-        //             if ('Notification' in window && Notification.permission === 'granted') {
-        //                 try {
-        //                     new Notification(title, {
-        //                         body,
-        //                         icon: '/favicon.ico',
-        //                         tag,
-        //                         requireInteraction: false,
-        //                         badge: '/favicon.ico'
-        //                     });
-        //                 } catch (error) {
-        //                     console.error('Notification error:', error);
-        //                     // Fallback - basit bildirim
-        //                     new Notification(title, { body });
-        //                 }
-        //             }
-        //         }
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function sendPushNotification(title, body, tag) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification(title, {
+                        body,
+                        icon: '/favicon.ico',
+                        tag,
+                        requireInteraction: false,
+                        badge: '/favicon.ico'
+                    });
+                } catch (error) {
+                    console.error('Notification error:', error);
+                    // Fallback - basit bildirim
+                    new Notification(title, { body });
+                }
+            }
+        }
         // 
         //         async function testNotification() {
         //             if (Notification.permission !== 'granted') {
